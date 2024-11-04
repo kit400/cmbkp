@@ -126,9 +126,8 @@ function ldap_filter()
     if [[ "$SESSION_TYPE" == "TXT" ]]; then
       EXIST=$(grep "$1:$(date +%m/%d/%y)" "$WORKDIR"/sessions.txt 2> /dev/null | tail -1)
     else
-      TODAY=$(date +%Y-%m-%dT%H:%M:%S.%N)
-      YESTERDAY=$(date +%Y-%m-%dT%H:%M:%S.%N -d "yesterday")
-      EXIST=$(sqlite3 "$WORKDIR"/sessions.sqlite3 "select email from backup_account where conclusion_date < '$TODAY' and conclusion_date > '$YESTERDAY' and email='$1'")
+      START_OF_TODAY=$(date +%Y-%m-%dT00:00:00.000000000)
+      EXIST=$(sqlite3 "$WORKDIR"/sessions.sqlite3 "select email from backup_account where conclusion_date > '$START_OF_TODAY' and email='$1'")
     fi
   fi
   grep -Fxq "$1" /etc/cmbackup/blockedlist.conf
