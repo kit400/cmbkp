@@ -97,7 +97,7 @@ function backup_main()
   if [[ -z $4 ]] || [[ "$3" == "-d" ]] || [[ "$3" == "--domain" ]]; then
     build_listBKP "$1" "$2" "$3" "$4"
   elif  [[ "$3" == "-a" ]] || [[ "$3" == "--account" ]]; then
-    for i in $("$4//,/\n/g"); do
+    for i in ${4//,/ }; do
       echo "$i" >> "$TEMPACCOUNT"
     done
   else

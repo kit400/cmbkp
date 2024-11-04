@@ -50,7 +50,7 @@ function mailbox_backup()
     fi
     AFTER='&'"start=$(date -d "$DATE" +%s)000"
   fi
-  $ZMMAILBOX -t 0 -z -m "$1" getRestURL --output "$TEMPDIR"/"$1".tgz "/?fmt=tgz&resolve=skip$AFTER" > "$TEMP_CLI_OUTPUT" 2>&1
+  $ZMMAILBOX -t 0 -z -m "$1" getRestURL -u "$ZMMAILBOX_URL" --output "$TEMPDIR"/"$1".tgz "/?fmt=tgz&resolve=skip$AFTER" > "$TEMP_CLI_OUTPUT" 2>&1
   BASHERRCODE=$?
   if [[ $BASHERRCODE -eq 0 ]]; then
     if [[ -s $TEMPDIR/$1.tgz ]]; then
@@ -78,6 +78,7 @@ function mailbox_backup()
 ###############################################################################
 function ldap_restore()
 {
+  printf "\n - Restoring LDAP from %s" "$WORKDIR/$1/$2.ldiff"
   ERR=$( (ldapadd -x -H "$LDAPSERVER" -D "$LDAPADMIN" \
            -c -w "$LDAPPASS" -f "$WORKDIR"/"$1"/"$2".ldiff) 2>&1)
   BASHERRCODE=$?
@@ -95,9 +96,10 @@ function ldap_restore()
 ###############################################################################
 function mailbox_restore()
 {
+  printf "\n - Restoring Mailbox from %s" "$WORKDIR/$1/$2.tgz"
   TEMP_CLI_OUTPUT=$(mktemp)
   zmlocalconfig -e socket_so_timeout=99999999
-  $ZMMAILBOX -t 0 -z -m "$2" postRestURL '//?fmt=tgz&resolve=skip' "$WORKDIR"/"$1"/"$2".tgz > "$TEMP_CLI_OUTPUT" 2>&1
+  $ZMMAILBOX -t 0 -z -m "$2" postRestURL -u "$ZMMAILBOX_URL" '//?fmt=tgz&resolve=skip' "$WORKDIR"/"$1"/"$2".tgz > "$TEMP_CLI_OUTPUT" 2>&1
   BASHERRCODE=$?
   zmlocalconfig -u socket_so_timeout
   if ! [[ $BASHERRCODE -eq 0 ]]; then
