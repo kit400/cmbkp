@@ -50,7 +50,7 @@ function mailbox_backup()
     fi
     AFTER='&'"start=$(date -d "$DATE" +%s)000"
   fi
-  $ZMMAILBOX -t 0 -z -m "$1" getRestURL --output "$TEMPDIR"/"$1".tgz "/?fmt=tgz&resolve=skip$AFTER" > "$TEMP_CLI_OUTPUT" 2>&1
+  $ZMMAILBOX -t 0 -z -m "$1" getRestURL -u "$ZMMAILBOX_URL" --output "$TEMPDIR"/"$1".tgz "/?fmt=tgz&resolve=skip$AFTER" > "$TEMP_CLI_OUTPUT" 2>&1
   BASHERRCODE=$?
   if [[ $BASHERRCODE -eq 0 ]]; then
     if [[ -s $TEMPDIR/$1.tgz ]]; then
@@ -78,6 +78,7 @@ function mailbox_backup()
 ###############################################################################
 function ldap_restore()
 {
+  printf "\n - Restoring LDAP from %s" "$WORKDIR/$1/$2.ldiff"
   ERR=$( (ldapadd -x -H "$LDAPSERVER" -D "$LDAPADMIN" \
            -c -w "$LDAPPASS" -f "$WORKDIR"/"$1"/"$2".ldiff) 2>&1)
   BASHERRCODE=$?
@@ -95,9 +96,10 @@ function ldap_restore()
 ###############################################################################
 function mailbox_restore()
 {
+  printf "\n - Restoring Mailbox from %s" "$WORKDIR/$1/$2.tgz"
   TEMP_CLI_OUTPUT=$(mktemp)
   zmlocalconfig -e socket_so_timeout=99999999
-  $ZMMAILBOX -t 0 -z -m "$2" postRestURL '//?fmt=tgz&resolve=skip' "$WORKDIR"/"$1"/"$2".tgz > "$TEMP_CLI_OUTPUT" 2>&1
+  $ZMMAILBOX -t 0 -z -m "$2" postRestURL -u "$ZMMAILBOX_URL" '//?fmt=tgz&resolve=skip' "$WORKDIR"/"$1"/"$2".tgz > "$TEMP_CLI_OUTPUT" 2>&1
   BASHERRCODE=$?
   zmlocalconfig -u socket_so_timeout
   if ! [[ $BASHERRCODE -eq 0 ]]; then
@@ -124,9 +126,8 @@ function ldap_filter()
     if [[ "$SESSION_TYPE" == "TXT" ]]; then
       EXIST=$(grep "$1:$(date +%m/%d/%y)" "$WORKDIR"/sessions.txt 2> /dev/null | tail -1)
     else
-      TODAY=$(date +%Y-%m-%dT%H:%M:%S.%N)
-      YESTERDAY=$(date +%Y-%m-%dT%H:%M:%S.%N -d "yesterday")
-      EXIST=$(sqlite3 "$WORKDIR"/sessions.sqlite3 "select email from backup_account where conclusion_date < '$TODAY' and conclusion_date > '$YESTERDAY' and email='$1'")
+      START_OF_TODAY=$(date +%Y-%m-%dT00:00:00.000000000)
+      EXIST=$(sqlite3 "$WORKDIR"/sessions.sqlite3 "select email from backup_account where conclusion_date > '$START_OF_TODAY' and email='$1'")
     fi
   fi
   grep -Fxq "$1" /etc/cmbackup/blockedlist.conf

@@ -177,6 +177,11 @@ function validate_config(){
     logger -i -p local7.warn "Cmbackup: ZMMAILBOX not defined informed - setting as $ZMMAILBOX instead"
   fi
 
+  if [ -z "$ZMMAILBOX_URL" ]; then
+    ZMMAILBOX_URL="https://localhost:7071"
+    logger -i -p local7.warn "Cmbackup: ZMMAILBOX_URL not defined - setting as $ZMMAILBOX_URL instead"
+  fi
+
   if [ -z "$MAX_PARALLEL_PROCESS" ]; then
     MAX_PARALLEL_PROCESS="1"
     logger -i -p local7.warn "Cmbackup: MAX_PARALLEL_PROCESS not informed - disabling."
@@ -282,4 +287,5 @@ function export_vars(){
   export SESSION_TYPE
   export MAILPORT
   export ZMMAILBOX
+  export ZMMAILBOX_URL
 }
