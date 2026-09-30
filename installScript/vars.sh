@@ -22,20 +22,21 @@ ZMBKP_LIB="/usr/local/lib/cmbackup"      # The new path for the libs
 OSE_USER="zextras"                                                                                                                             # Carbonio's unix user
 OSE_INSTALL_DIR="/opt/zextras"                                                                                                                 # The Carbonio's installation path
 OSE_DEFAULT_BKP_DIR="/opt/zextras/backup"                                                                                                      # Where you will store your backup
-OSE_INSTALL_DOMAIN=`su -s /bin/bash -c "$OSE_INSTALL_DIR/bin/zmprov gad | head -1" $OSE_USER`                                                  # Carbonio's Domain
-OSE_INSTALL_HOSTNAME=`hostname --fqdn`
-OSE_INSTALL_PORT=`grep -A1 zimbraAdminPort $OSE_INSTALL_DIR/conf/attrs/attrs.xml | grep globalConfigValue | grep -v zimbraAdminPort | cut -d\> -f2 | cut -d\< -f1`
-OSE_INSTALL_ADDRESS=`ping -c1 $OSE_INSTALL_HOSTNAME | head -1 | cut -d" " -f3|sed 's#(##g'|sed 's#)##g'`                                       # Carbonio's Server Address
-OSE_INSTALL_LDAPPASS=`su -s /bin/bash -c "$OSE_INSTALL_DIR/bin/zmlocalconfig -s zimbra_ldap_password" $OSE_USER |awk '{print $3}'`             # Carbonio's LDAP Password
-ZMBKP_MAIL_ALERT="zextras@"$OSE_INSTALL_DOMAIN                                                                                                   # Cmbackup's mail alert account
+OSE_INSTALL_DOMAIN=$(su -s /bin/bash -c "$OSE_INSTALL_DIR/bin/zmprov gad 2>/dev/null | head -1" "$OSE_USER" || echo "localdomain.com")
+OSE_INSTALL_HOSTNAME=$(hostname --fqdn 2>/dev/null || hostname)
+if [ -f "$OSE_INSTALL_DIR/conf/attrs/attrs.xml" ]; then
+  OSE_INSTALL_PORT=$(grep -A1 zimbraAdminPort "$OSE_INSTALL_DIR/conf/attrs/attrs.xml" 2>/dev/null | grep globalConfigValue | grep -v zimbraAdminPort | cut -d\> -f2 | cut -d\< -f1)
+fi
+[ -z "$OSE_INSTALL_PORT" ] && OSE_INSTALL_PORT="7071"
+OSE_INSTALL_ADDRESS=$(hostname -I 2>/dev/null | awk '{print $1}')
+[ -z "$OSE_INSTALL_ADDRESS" ] && OSE_INSTALL_ADDRESS="127.0.0.1"
+OSE_INSTALL_LDAPPASS=$(su -s /bin/bash -c "$OSE_INSTALL_DIR/bin/zmlocalconfig -s zimbra_ldap_password 2>/dev/null" "$OSE_USER" | awk '{print $3}')
+ZMBKP_MAIL_ALERT="zextras@${OSE_INSTALL_DOMAIN}"
 MAX_PARALLEL_PROCESS="3"                                                                                                                       # Cmbackup's number of threads
 ROTATE_TIME="30"                                                                                                                               # Cmbackup's max of days before housekeeper
 LOCK_BACKUP=true                                                                                                                               # Cmbackup's backup lock
-ZMBKP_VERSION="cmbackup version: 1.2.6"                                                                                                        # Cmbackup's latest version
+ZMBKP_VERSION="cmbackup version: 1.3.0"                                                                                                        # Cmbackup's latest version
 SESSION_TYPE="TXT"                                                                                                                             # Cmbackup's default session type
-
-# REPOSITORIES FOR PACKAGES
-OLE_TANGE="http://download.opensuse.org/repositories/home:/tange/CentOS_CentOS-6/home:tange.repo"
 
 # Force a terminal type - Issue #90
 export TERM="linux"

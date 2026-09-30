@@ -49,6 +49,30 @@ function build_listBKP()
   grep "^$2" "$TEMPACCOUNT" | awk '{print $2}' > "$TEMPINACCOUNT"
   truncate --size 0 "$TEMPACCOUNT"
   parallel --jobs "$MAX_PARALLEL_PROCESS" "ldap_filter '{}'" < "$TEMPINACCOUNT"
+  sort_accounts_by_size "$TEMPACCOUNT"
+}
+
+################################################################################
+# sort_accounts_by_size: LPT (Longest Processing Time First) ordering (from z2c)
+# Sorts accounts descending by mailbox size so largest mailboxes start first in parallel
+################################################################################
+function sort_accounts_by_size()
+{
+  local acc_file="$1"
+  if [ ! -s "$acc_file" ]; then
+    return 0
+  fi
+  local gqu_out
+  gqu_out=$(zmprov gqu localhost 2>/dev/null)
+  if [ -n "$gqu_out" ]; then
+    local tmp_sorted
+    tmp_sorted=$(mktemp)
+    awk 'NR==FNR {size[$1]=$3; next} {s = ($1 in size ? size[$1] : 0); printf "%015d %s\n", s, $1}' <(echo "$gqu_out") "$acc_file" | sort -rn | awk '{print $2}' > "$tmp_sorted"
+    if [ -s "$tmp_sorted" ]; then
+      cat "$tmp_sorted" > "$acc_file"
+    fi
+    rm -f "$tmp_sorted"
+  fi
 }
 
 

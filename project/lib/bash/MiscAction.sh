@@ -44,23 +44,27 @@ function create_temp(){
   TEMPSQL=$(mktemp)
 }
 
+if [[ ":$PATH:" != *":/opt/zextras/bin:"* ]]; then
+  export PATH="/opt/zextras/bin:/opt/zextras/common/bin:$PATH"
+fi
+
 ################################################################################
 # load_config: Load the config file and zextras's bashrc.
 ################################################################################
 function load_config(){
-  if [ -f "/etc/cmbackup/cmbackup.conf" ]; then
+  if [ -n "$CMBACKUP_CONF" ] && [ -f "$CMBACKUP_CONF" ]; then
+    source "$CMBACKUP_CONF" 2> /dev/null
+  elif [ -f "/etc/cmbackup/cmbackup.conf" ]; then
     source /etc/cmbackup/cmbackup.conf 2> /dev/null
+  elif [ -f "$(dirname "${BASH_SOURCE[0]}")/../../config/cmbackup.conf" ]; then
+    source "$(dirname "${BASH_SOURCE[0]}")/../../config/cmbackup.conf" 2> /dev/null
   else
     logger -i -p local7.err "Cmbackup: cmbackup.conf not found."
-    echo "ERROR - cmbackup.conf not found. Can't proceed whitout the file."
+    echo "ERROR - cmbackup.conf not found. Can't proceed without the file."
     exit 1
   fi
   if [ -f "/opt/zextras/.bashrc" ]; then
     source /opt/zextras/.bashrc 2> /dev/null
-  else
-    logger -i -p local7.err "Cmbackup: zextras user's .bashrc not found."
-    echo "ERROR - zextras user's .bashrc not found. Can't proceed whitout the file."
-    exit 1
   fi
 }
 
@@ -172,9 +176,13 @@ function validate_config(){
     logger -i -p local7.warn "Cmbackup: EMAIL_NOTIFY not informed - setting as root@localdomain.com instead."
   fi
 
-  if [ -z "$ZMMAILBOX" ]; then
-    ZMMAILBOX=$(whereis zmmailbox | cut -d" " -f2)
-    logger -i -p local7.warn "Cmbackup: ZMMAILBOX not defined informed - setting as $ZMMAILBOX instead"
+  if [ -z "$ZMMAILBOX" ] || [ ! -x "$ZMMAILBOX" ]; then
+    if [ -x "/opt/zextras/bin/zmmailbox" ]; then
+      ZMMAILBOX="/opt/zextras/bin/zmmailbox"
+    else
+      ZMMAILBOX=$(which zmmailbox 2>/dev/null)
+    fi
+    logger -i -p local7.warn "Cmbackup: ZMMAILBOX set as $ZMMAILBOX"
   fi
 
   if [ -z "$ZMMAILBOX_URL" ]; then
@@ -198,34 +206,51 @@ function validate_config(){
     ERR="true"
   fi
 
+  if [ -z "$LDAPSERVER" ]; then
+    LDAP_URL=$(zmlocalconfig -s ldap_url 2>/dev/null | awk '{print $3}')
+    if [ -n "$LDAP_URL" ]; then
+      LDAPSERVER="$LDAP_URL"
+    else
+      LDAPSERVER="ldap://127.0.0.1:389"
+    fi
+    logger -i -p local7.info "Cmbackup: LDAPSERVER auto-detected as $LDAPSERVER"
+  fi
+
   if [ -z "$LDAPADMIN" ]; then
-    echo "You need to define the variable LDAPADMIN."
-    logger -i -p local7.err "Cmbackup: You need to define the variable LDAPADMIN."
-    ERR="true"
+    LDAP_DN=$(zmlocalconfig -s zimbra_ldap_userdn 2>/dev/null | awk '{print $3}')
+    if [ -n "$LDAP_DN" ]; then
+      LDAPADMIN="$LDAP_DN"
+    else
+      LDAPADMIN="uid=zimbra,cn=admins,cn=zimbra"
+    fi
+    logger -i -p local7.info "Cmbackup: LDAPADMIN auto-detected as $LDAPADMIN"
   fi
 
   if [ -z "$LDAPPASS" ]; then
-    echo "You need to define the variable LDAPPASS."
-    logger -i -p local7.err "Cmbackup: You need to define the variable LDAPPASS."
-    ERR="true"
+    LDAP_PW=$(zmlocalconfig -s zimbra_ldap_password 2>/dev/null | awk '{print $3}')
+    if [ -n "$LDAP_PW" ]; then
+      LDAPPASS="$LDAP_PW"
+      logger -i -p local7.info "Cmbackup: LDAPPASS auto-detected from localconfig"
+    fi
   fi
 
   if [ -z "$ROTATE_TIME" ]; then
-    echo "You need to define the variable ROTATE_TIME."
-    logger -i -p local7.err "Cmbackup: You need to define the variable ROTATE_TIME."
-    ERR="true"
+    ROTATE_TIME="30"
+    logger -i -p local7.warn "Cmbackup: ROTATE_TIME not informed - setting to 30 days."
   fi
 
   if [ -z "$SESSION_TYPE" ]; then
-    echo "You need to define the variable SESSION_TYPE."
-    logger -i -p local7.err "Cmbackup: You need to define the variable SESSION_TYPE."
-    ERR="true"
+    SESSION_TYPE="TXT"
+    logger -i -p local7.warn "Cmbackup: SESSION_TYPE not informed - setting to TXT."
   fi
 
   if [ -z "$BACKUP_INACTIVE_ACCOUNTS" ]; then
-    echo "You need to define the variable BACKUP_INACTIVE_ACCOUNTS."
-    logger -i -p local7.err "Cmbackup: You need to define the variable BACKUP_INACTIVE_ACCOUNTS."
-    ERR="true"
+    BACKUP_INACTIVE_ACCOUNTS="true"
+    logger -i -p local7.warn "Cmbackup: BACKUP_INACTIVE_ACCOUNTS not informed - setting to true."
+  fi
+
+  if [ -z "$MIN_FREE_DISK_GB" ]; then
+    MIN_FREE_DISK_GB="5"
   fi
 
   if [ -z "$SSL_ENABLE" ]; then
@@ -234,9 +259,29 @@ function validate_config(){
   fi
 
   if [ "$ERR" == "true" ]; then
-    echo "Some errors are found inside the config file. Please fix then and try again later."
-    logger -i -p local7.err "Cmbackup: You need to define the variable BACKUP_INACTIVE_ACCOUNTS."
+    echo "Some errors are found inside the config file. Please fix them and try again later."
     exit 3
+  fi
+}
+
+################################################################################
+# check_disk_space: Safeguard check on free disk space (from z2c)
+################################################################################
+function check_disk_space(){
+  local target_dir="${1:-$WORKDIR}"
+  local min_gb="${2:-$MIN_FREE_DISK_GB}"
+  if [ -z "$min_gb" ]; then
+    min_gb=5
+  fi
+  if [ -d "$target_dir" ]; then
+    local free_kb
+    free_kb=$(df -k "$target_dir" | tail -1 | awk '{print $4}')
+    local free_gb=$(( free_kb / 1024 / 1024 ))
+    if [ "$free_gb" -lt "$min_gb" ]; then
+      echo "CRITICAL: Insufficient disk space on $target_dir: ${free_gb}GB available, minimum ${min_gb}GB required. Aborting to protect Carbonio services!"
+      logger -i -p local7.err "Cmbackup: Insufficient disk space on $target_dir: ${free_gb}GB available, minimum ${min_gb}GB required. Aborting!"
+      exit 6
+    fi
   fi
 }
 
@@ -273,6 +318,9 @@ function export_function(){
   export -f mailbox_backup
   export -f ldap_filter
   export -f mailbox_restore
+  export -f check_disk_space
+  export -f sort_accounts_by_size
+  export -f verify_account_messages
 }
 
 ################################################################################
@@ -288,4 +336,7 @@ function export_vars(){
   export MAILPORT
   export ZMMAILBOX
   export ZMMAILBOX_URL
+  export MIN_FREE_DISK_GB
+  export DRY_RUN
+  export SINCE_DATE
 }

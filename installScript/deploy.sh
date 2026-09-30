@@ -52,15 +52,15 @@ function deploy_new() {
   echo -ne '####                  (20%)\r'
 
   # Disable Parallel's message - Cmbackup remind the user about GNU Parallel
-  mkdir "$OSE_INSTALL_DIR"/.parallel > /dev/null 2>&1 && touch "$OSE_INSTALL_DIR"/.parallel/will-cite
-  chown -R zextras. "$OSE_INSTALL_DIR"/.parallel
+  mkdir -p "$OSE_INSTALL_DIR"/.parallel > /dev/null 2>&1 && touch "$OSE_INSTALL_DIR"/.parallel/will-cite
+  chown -R "$OSE_USER":"$OSE_USER" "$OSE_INSTALL_DIR"/.parallel
 
   # Copy file
-  install -o "$OSE_USER" -m 700 "$MYDIR"/project/cmbackup "$ZMBKP_SRC"
+  install -o "$OSE_USER" -g "$OSE_USER" -m 755 "$MYDIR"/project/cmbackup "$ZMBKP_SRC"
   echo -ne '#####                 (25%)\r'
   cp -R "$MYDIR"/project/lib/* "$ZMBKP_LIB"
-  chown -R "$OSE_USER". "$ZMBKP_LIB"
-  chmod -R 700 "$ZMBKP_LIB"
+  chown -R "$OSE_USER":"$OSE_USER" "$ZMBKP_LIB"
+  chmod -R 755 "$ZMBKP_LIB"
   echo -ne '######                (30%)\r'
 
   install --backup=numbered -o root -m 600 "$MYDIR"/project/config/cmbackup.cron /etc/cron.d/cmbackup
@@ -110,16 +110,16 @@ function deploy_upgrade(){
   echo -ne '##########            (50%)\r'
 
   # Disable Parallel's message - Cmbackup remind the user about GNU Parallel
-  mkdir "$OSE_INSTALL_DIR"/.parallel > /dev/null 2>&1 && touch "$OSE_INSTALL_DIR"/.parallel/will-cite
-  chown -R zextras. "$OSE_INSTALL_DIR"/.parallel
+  mkdir -p "$OSE_INSTALL_DIR"/.parallel > /dev/null 2>&1 && touch "$OSE_INSTALL_DIR"/.parallel/will-cite
+  chown -R "$OSE_USER":"$OSE_USER" "$OSE_INSTALL_DIR"/.parallel
 
   # Copy files
-  install -o "$OSE_USER" -m 700 "$MYDIR"/project/cmbackup "$ZMBKP_SRC"
+  install -o "$OSE_USER" -g "$OSE_USER" -m 755 "$MYDIR"/project/cmbackup "$ZMBKP_SRC"
   echo -ne '###############       (75%)\r'
   test -d "$ZMBKP_LIB" || mkdir -p "$ZMBKP_LIB"
   cp -R "$MYDIR"/project/lib/* "$ZMBKP_LIB"
-  chown -R "$OSE_USER". "$ZMBKP_LIB"
-  chmod -R 700 "$ZMBKP_LIB"
+  chown -R "$OSE_USER":"$OSE_USER" "$ZMBKP_LIB"
+  chmod -R 755 "$ZMBKP_LIB"
   echo -ne '####################  (100%)\r'
 }
 

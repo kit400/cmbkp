@@ -19,6 +19,9 @@ function show_help (){
 
   printf "\n -f,   --full                     : Execute full backup of an account, a list of accounts, or all accounts."
   printf "\n -i,   --incremental              : Execute incremental backup for an account, a list of accounts, or all accounts."
+  printf "\n       --since <YYYY-MM-DD>       : Specify explicit date for incremental backup."
+  printf "\n       --dry-run                  : Test run without downloading or writing data."
+  printf "\n -c,   --verify [account]         : Audit and verify mailbox message count."
   printf "\n -l,   --list                     : List all backup sessions that still exist in your disk."
   printf "\n -r,   --restore                  : Restore the backup inside the users account."
   printf "\n -d,   --delete                   : Delete a session of backup."

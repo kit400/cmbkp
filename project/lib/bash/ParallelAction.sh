@@ -40,31 +40,59 @@ function ldap_backup()
 function mailbox_backup()
 {
   TEMP_CLI_OUTPUT=$(mktemp)
+  check_disk_space "$TEMPDIR" "$MIN_FREE_DISK_GB"
+
+  AFTER=""
   if [[ "$INC" == "TRUE" ]]; then
-    if [[ $SESSION_TYPE == 'TXT' ]]; then
-      DATE=$(grep "$1" "$WORKDIR"/sessions.txt | tail -1 | awk -F: '{print $3}' | cut -d'-' -f2)
+    if [[ -n "$SINCE_DATE" ]]; then
+      DATE="$SINCE_DATE"
+    elif [[ $SESSION_TYPE == 'TXT' ]]; then
+      DATE=$(grep "$1" "$WORKDIR"/sessions.txt 2>/dev/null | tail -1 | awk -F: '{print $3}' | cut -d'-' -f2)
     elif [[ $SESSION_TYPE == 'SQLITE3' ]]; then
       DATE=$(sqlite3 "$WORKDIR"/sessions.sqlite3 "select MAX(initial_date) \
              from backup_account where email='$1' and \
-             (sessionID like 'full%' or sessionID like 'inc%' or sessionID like 'mbox%')")
+             (sessionID like 'full%' or sessionID like 'inc%' or sessionID like 'mbox%')" 2>/dev/null)
     fi
-    AFTER='&'"start=$(date -d "$DATE" +%s)000"
+    if [[ -n "$DATE" ]]; then
+      START_TS=$(date -d "$DATE" +%s 2>/dev/null)
+      if [[ -n "$START_TS" ]]; then
+        AFTER='&'"start=${START_TS}000"
+      fi
+    fi
   fi
+
+  if [[ "$DRY_RUN" == "TRUE" ]]; then
+    logger -i -p local7.info "Cmbackup: [DRY-RUN] Mailbox check for account $1"
+    echo "[DRY-RUN] Account $1 - backup simulated (no data transferred)."
+    export ERRCODE=0
+    rm -rf "${TEMP_CLI_OUTPUT:?}"
+    return 0
+  fi
+
   $ZMMAILBOX -t 0 -z -m "$1" getRestURL -u "$ZMMAILBOX_URL" --output "$TEMPDIR"/"$1".tgz "/?fmt=tgz&resolve=skip$AFTER" > "$TEMP_CLI_OUTPUT" 2>&1
   BASHERRCODE=$?
+  CLI_OUT=$(cat "$TEMP_CLI_OUTPUT")
+
   if [[ $BASHERRCODE -eq 0 ]]; then
     if [[ -s $TEMPDIR/$1.tgz ]]; then
       logger -i -p local7.info "Cmbackup: Mailbox - Backup for account $1 finished."
     else
-      logger -i -p local7.info "Cmbackup: Mailbox - Backup for account $1 finished, but the file is empty. Removing..."
+      # HTTP 204 or empty archive detection (from z2c)
+      logger -i -p local7.info "Cmbackup: Mailbox - No changes for account $1 (empty dump/204 No Data). Removing temporary empty file."
       rm -rf "$TEMPDIR"/"$1".tgz
     fi
     export ERRCODE=0
   else
-    logger -i -p local7.err "Cmbackup: Mailbox - Backup for account $1 failed. Error message below:"
-    echo "Cmbackup: $1 " | logger -i -p local7.err
-    logger -i -p local7.err < "$TEMP_CLI_OUTPUT"
-    export ERRCODE=1
+    if [[ "$CLI_OUT" == *"status=204"* ]]; then
+      logger -i -p local7.info "Cmbackup: Mailbox - Account $1 has no new data since last sync (204 No Data)."
+      rm -rf "$TEMPDIR"/"$1".tgz
+      export ERRCODE=0
+    else
+      logger -i -p local7.err "Cmbackup: Mailbox - Backup for account $1 failed. Error message below:"
+      echo "Cmbackup: $1 " | logger -i -p local7.err
+      logger -i -p local7.err < "$TEMP_CLI_OUTPUT"
+      export ERRCODE=1
+    fi
   fi
   rm -rf "${TEMP_CLI_OUTPUT:?}"
 }
@@ -89,7 +117,7 @@ function ldap_restore()
 }
 
 ###############################################################################
-# ldap_restore: Restore a LDAP object inside a file.
+# mailbox_restore: Restore a mailbox from archive.
 # Options:
 # $1 - The session file to be restored;
 # $2 - The account that should be restored.
@@ -97,19 +125,35 @@ function ldap_restore()
 function mailbox_restore()
 {
   printf "\n - Restoring Mailbox from %s" "$WORKDIR/$1/$2.tgz"
+  if ! [[ -f "$WORKDIR/$1/$2.tgz" ]]; then
+    printf "\nAccount %s has no archive in session %s - skipping..." "$2" "$1"
+    return 0
+  fi
   TEMP_CLI_OUTPUT=$(mktemp)
   zmlocalconfig -e socket_so_timeout=99999999
   $ZMMAILBOX -t 0 -z -m "$2" postRestURL -u "$ZMMAILBOX_URL" '//?fmt=tgz&resolve=skip' "$WORKDIR"/"$1"/"$2".tgz > "$TEMP_CLI_OUTPUT" 2>&1
   BASHERRCODE=$?
   zmlocalconfig -u socket_so_timeout
+  CLI_OUT=$(cat "$TEMP_CLI_OUTPUT")
   if ! [[ $BASHERRCODE -eq 0 ]]; then
-    printf "Error during the restore process for account %s. Error message below:" "$2"
-    printf "\n%s: " "$2"
-    cat "$TEMP_CLI_OUTPUT"
-  elif [[ "$ERR"  == *"No such file or directory" ]]; then
-    printf "Account %s has nothing to restore - skipping..." "$2"
+    if [[ "$CLI_OUT" == *"status=500"* ]]; then
+      printf "\nNotice: postRestURL returned status=500 (empty chunk/boundary) for %s, continuing." "$2"
+    else
+      printf "\nError during the restore process for account %s. Error message below:\n%s\n" "$2" "$CLI_OUT"
+    fi
   fi
   rm -rf "${TEMP_CLI_OUTPUT:?}"
+}
+
+###############################################################################
+# verify_account_messages: Audit / count messages in mailbox (from z2c)
+###############################################################################
+function verify_account_messages()
+{
+  local acc="$1"
+  local msgs
+  msgs=$($ZMMAILBOX -z -m "$acc" gaf 2>/dev/null | awk '$1 ~ /^[0-9]+$/ && $3 ~ /^[0-9]+$/ && $4 ~ /^[0-9]+$/ {sum += $4} END {print sum+0}')
+  printf "  [AUDIT] %-35s : %6d messages\n" "$acc" "$msgs"
 }
 
 

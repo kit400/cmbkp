@@ -100,6 +100,7 @@ function backup_main()
     for i in ${4//,/ }; do
       echo "$i" >> "$TEMPACCOUNT"
     done
+    sort_accounts_by_size "$TEMPACCOUNT"
   else
     echo "ERROR - Option $3 is not valid"
     rm -rf "$PID"
@@ -108,6 +109,24 @@ function backup_main()
 
   # If $TEMPACCOUNT is not empty, do a backup, if is do nothing
   if [ -s "$TEMPACCOUNT" ]; then
+    check_disk_space "$WORKDIR" "$MIN_FREE_DISK_GB"
+
+    if [[ "$DRY_RUN" == "TRUE" ]]; then
+      echo "[DRY-RUN] Backup session $SESSION (DRY RUN - no data will be written)"
+      echo "Accounts to be checked ($(wc -l < "$TEMPACCOUNT" | tr -d ' ')): "
+      cat "$TEMPACCOUNT"
+      if [[ "$SESSION" == "full"* ]] || [[ "$SESSION" == "inc"* ]]; then
+        parallel --jobs "$MAX_PARALLEL_PROCESS" "__backupFullInc '{}' '$1'" < "$TEMPACCOUNT"
+      elif [[ "$SESSION" == "mbox"* ]]; then
+        parallel --jobs "$MAX_PARALLEL_PROCESS" "__backupMailbox '{}' '$1'" < "$TEMPACCOUNT"
+      else
+        parallel --jobs "$MAX_PARALLEL_PROCESS" "__backupLdap '{}' '$1'" < "$TEMPACCOUNT"
+      fi
+      echo "[DRY-RUN] Verification complete. Exiting without modifying backup storage."
+      rm -rf "$TEMPDIR" "$PID"
+      return 0
+    fi
+
     notify_begin "$SESSION" "$STYPE"
     logger -i -p local7.info "Cmbackup: Backup session $SESSION started on $(date)"
     echo "Backup session $SESSION started on $(date)"

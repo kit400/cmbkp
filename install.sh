@@ -54,10 +54,20 @@ if [[ $1 == "--remove" ]] || [[ $1 == "-r" ]]; then
   fi
 fi
 
+UNATTENDED="N"
+for arg in "$@"; do
+  if [[ "$arg" == "-y" ]] || [[ "$arg" == "--yes" ]] || [[ "$arg" == "--unattended" ]]; then
+    UNATTENDED="Y"
+  fi
+done
+
 #
 # Install & Upgrade code
 ################################################################################
-contract
+if [[ $UNATTENDED != "Y" ]]; then
+  contract
+fi
+
 if [[ $UPGRADE = "Y" ]]; then
   if [[ $SO = "ubuntu" ]]; then
     install_ubuntu
@@ -66,8 +76,10 @@ if [[ $UPGRADE = "Y" ]]; then
   fi
   deploy_upgrade
 else
-  set_values
-  check_config
+  if [[ $UNATTENDED != "Y" ]]; then
+    set_values
+    check_config
+  fi
   if [[ $SO = "ubuntu" ]]; then
     install_ubuntu
   else
@@ -77,11 +89,15 @@ else
 fi
 
 # We're done!
-read -r -p "Install completed. Do you want to display the README file? (Y/n)" tmp
-case "$tmp" in
-	y|Y|Yes|"") less "$MYDIR"/README.md;;
-	*) echo "Done!";;
-esac
+if [[ $UNATTENDED != "Y" ]]; then
+  read -r -p "Install completed. Do you want to display the README file? (Y/n)" tmp
+  case "$tmp" in
+  	y|Y|Yes|"") less "$MYDIR"/README.md;;
+  	*) echo "Done!";;
+  esac
+  clear
+else
+  echo "Installation completed successfully."
+fi
 
-clear
 exit "$ERR_OK"

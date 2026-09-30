@@ -43,6 +43,9 @@
 #
 # 20/09/2023 - Version 1.2.8  - By The Carbonio Community & Anahuac Gil
 #                               <anahuac@anahuac.eu>
+# 04/10/2024 - Version 1.2.9  - By The Carbonio Community & Anahuac Gil
+# 30/09/2026 - Version 1.3.0  - Enhancements & Z2C architecture integrations
+#                               by kit400 <kit400@users.noreply.github.com>
 ################################################################################
 # parallel:
 #
@@ -52,20 +55,56 @@
 ################################################################################
 # LOADING CMBACKUP LIBRARIES
 ################################################################################
-source /usr/local/lib/cmbackup/bash/HelpAction.sh
-source /usr/local/lib/cmbackup/bash/MiscAction.sh
-source /usr/local/lib/cmbackup/bash/NotifyAction.sh
-source /usr/local/lib/cmbackup/bash/ParallelAction.sh
-source /usr/local/lib/cmbackup/bash/ListAction.sh
-source /usr/local/lib/cmbackup/bash/BackupAction.sh
-source /usr/local/lib/cmbackup/bash/RestoreAction.sh
-source /usr/local/lib/cmbackup/bash/DeleteAction.sh
-source /usr/local/lib/cmbackup/bash/MigrationAction.sh
-source /usr/local/lib/cmbackup/bash/SessionAction.sh
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CMBKP_LIB_DIR="/usr/local/lib/cmbackup/bash"
+if [ ! -d "$CMBKP_LIB_DIR" ]; then
+  if [ -d "$SCRIPT_DIR/lib/bash" ]; then
+    CMBKP_LIB_DIR="$SCRIPT_DIR/lib/bash"
+  elif [ -d "$SCRIPT_DIR/../lib/bash" ]; then
+    CMBKP_LIB_DIR="$SCRIPT_DIR/../lib/bash"
+  fi
+fi
+
+source "$CMBKP_LIB_DIR/HelpAction.sh"
+source "$CMBKP_LIB_DIR/MiscAction.sh"
+source "$CMBKP_LIB_DIR/NotifyAction.sh"
+source "$CMBKP_LIB_DIR/ParallelAction.sh"
+source "$CMBKP_LIB_DIR/ListAction.sh"
+source "$CMBKP_LIB_DIR/BackupAction.sh"
+source "$CMBKP_LIB_DIR/RestoreAction.sh"
+source "$CMBKP_LIB_DIR/DeleteAction.sh"
+source "$CMBKP_LIB_DIR/MigrationAction.sh"
+source "$CMBKP_LIB_DIR/SessionAction.sh"
 
 ################################################################################
 # CMBACKUP MAIN CODE
 ################################################################################
+# Parse global options (--dry-run, --since, --config)
+ARGS=()
+export DRY_RUN="FALSE"
+export SINCE_DATE=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --dry-run)
+      export DRY_RUN="TRUE"
+      shift
+      ;;
+    --since)
+      export SINCE_DATE="$2"
+      shift 2
+      ;;
+    --config)
+      export CMBACKUP_CONF="$2"
+      shift 2
+      ;;
+    *)
+      ARGS+=("$1")
+      shift
+      ;;
+  esac
+done
+set -- "${ARGS[@]}"
+
 load_config
 validate_config
 export_function
@@ -192,11 +231,26 @@ case "$1" in
       echo "This action is irreversible - Use the option --force-clean to override this message"
     fi
   ;;
+  "-c"|"--verify" )
+    if [ -n "$2" ]; then
+      verify_account_messages "$2"
+    else
+      echo "Auditing active accounts on system..."
+      create_temp
+      build_listBKP "$ACOBJECT" "$ACFILTER"
+      if [ -s "$TEMPACCOUNT" ]; then
+        while read -r acc; do
+          verify_account_messages "$acc"
+        done < "$TEMPACCOUNT"
+      fi
+      rm -rf "$PID"
+    fi
+  ;;
   "-h"|"--help" )
     show_help
   ;;
   "-v"|"--version" )
-    echo "cmbackup version: 1.2.7"
+    echo "cmbackup version: 1.3.0"
   ;;
   "-m"|"--migrate" )
     checkpid
