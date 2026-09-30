@@ -166,9 +166,11 @@ function validate_config(){
     logger -i -p local7.warn "Cmbackup: ENABLE_EMAIL_NOTIFY not informed - setting as 'all' instead."
   fi
 
-  if [ -z "$EMAIL_SENDER" ]; then
-    EMAIL_SENDER="root@"$(hostname -d)
-    logger -i -p local7.warn "Cmbackup: EMAIL_SENDER not informed - setting as $EMAIL_SENDER instead."
+  if [ -z "$EMAIL_SENDER" ] || [ "$EMAIL_SENDER" == "root@" ]; then
+    local_dom=$(hostname -d 2>/dev/null)
+    [ -z "$local_dom" ] && local_dom="localhost"
+    EMAIL_SENDER="cmbackup@$local_dom"
+    logger -i -p local7.warn "Cmbackup: EMAIL_SENDER set as $EMAIL_SENDER"
   fi
 
   if [ -z "$EMAIL_NOTIFY" ]; then

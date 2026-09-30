@@ -147,7 +147,11 @@ case "$1" in
       * )
         sessionvars "$1"
         create_temp
-        backup_main "$ACOBJECT" "$ACFILTER" "$2" "$3"
+        if [[ "$2" == *"@"* ]]; then
+          backup_main "$ACOBJECT" "$ACFILTER" "-a" "$2"
+        else
+          backup_main "$ACOBJECT" "$ACFILTER" "$2" "$3"
+        fi
         rm -rf "$PID"
       ;;
     esac
@@ -156,7 +160,18 @@ case "$1" in
     sessionvars "$1" 'TRUE'
     checkpid
     create_temp
-    backup_main "$ACOBJECT" "$ACFILTER" "$2" "$3"
+    case "$2" in
+      "-a"|"--account"|"-d"|"--domain" )
+        backup_main "$ACOBJECT" "$ACFILTER" "$2" "$3"
+      ;;
+      * )
+        if [[ "$2" == *"@"* ]]; then
+          backup_main "$ACOBJECT" "$ACFILTER" "-a" "$2"
+        else
+          backup_main "$ACOBJECT" "$ACFILTER" "$2" "$3"
+        fi
+      ;;
+    esac
     rm -rf "$PID"
   ;;
   "-l"|"--list" )

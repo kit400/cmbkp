@@ -32,6 +32,7 @@ OSE_INSTALL_ADDRESS=$(hostname -I 2>/dev/null | awk '{print $1}')
 [ -z "$OSE_INSTALL_ADDRESS" ] && OSE_INSTALL_ADDRESS="127.0.0.1"
 OSE_INSTALL_LDAPPASS=$(su -s /bin/bash -c "$OSE_INSTALL_DIR/bin/zmlocalconfig -s zimbra_ldap_password 2>/dev/null" "$OSE_USER" | awk '{print $3}')
 ZMBKP_MAIL_ALERT="zextras@${OSE_INSTALL_DOMAIN}"
+ZMBKP_MAIL_SENDER="cmbackup@${OSE_INSTALL_DOMAIN}"
 MAX_PARALLEL_PROCESS="3"                                                                                                                       # Cmbackup's number of threads
 ROTATE_TIME="30"                                                                                                                               # Cmbackup's max of days before housekeeper
 LOCK_BACKUP=true                                                                                                                               # Cmbackup's backup lock
