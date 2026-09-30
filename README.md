@@ -7,7 +7,7 @@ Based on the original `zmbackup` / `cmbackup` implementations (Lucas Costa Beyel
 
 [![Carbonio CE](https://img.shields.io/badge/Carbonio%20CE-23.x%20--%2026.x-blue.svg)](https://www.zextras.com/carbonio-community-edition)
 [![Platform](https://img.shields.io/badge/platform-Ubuntu%2022.04%20|%2024.04%20|%20RHEL%208--9-orange.svg)](https://ubuntu.com/)
-[![Release](https://img.shields.io/badge/Release-1.3.0-green.svg)](https://github.com/kit400/cmnkp)
+[![Release](https://img.shields.io/badge/Release-1.3.0-green.svg)](https://github.com/kit400/cmbkp)
 [![License: GPL v2](https://img.shields.io/badge/License-GPL%20v2-blue.svg)](LICENSE)
 
 ---
@@ -60,15 +60,15 @@ Based on the original `zmbackup` / `cmbackup` implementations (Lucas Costa Beyel
 Run as `root` on your Carbonio server:
 
 ```bash
-git clone https://github.com/kit400/cmnkp.git /tmp/cmnkp
-cd /tmp/cmnkp
+git clone https://github.com/kit400/cmbkp.git /tmp/cmbkp
+cd /tmp/cmbkp
 ./install.sh -y
 ```
 
 ### Interactive Install
 
 ```bash
-cd /tmp/cmnkp
+cd /tmp/cmbkp
 ./install.sh
 ```
 
