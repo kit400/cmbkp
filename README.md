@@ -15,6 +15,12 @@ Based on the original `zmbackup` / `cmbackup` implementations (Lucas Costa Beyel
 
 ---
 
+<p align="center">
+  <img src="docs/screenshots/screen4.png" alt="CMBKP Interactive Management Console (TUI)" width="850">
+</p>
+
+---
+
 ## Key Features & Enhancements
 
 1. **Interactive TUI with `fzf` Search (`--tui` / `-ui`)**:
@@ -126,6 +132,11 @@ su - zextras -c "cmbkp -ui"
   - Browse past backup sessions with a live preview of all contained mailboxes and sizes.
   - Press <kbd>Enter</kbd> to inspect the session in formatted 96-column table view.
 
+<p align="center">
+  <img src="docs/screenshots/screen3.png" alt="Account Live Preview" width="850"><br>
+  <em>Side-by-side account preview pane with live mailbox quota, available backup sessions, and archive file listings</em>
+</p>
+
 ---
 
 ## CLI Usage Guide
@@ -204,38 +215,26 @@ su - zextras -c "cmbkp -l -S"
 ```
 
 Output:
-```text
-╭─────────────────────────┬────────────────────┬──────────┬────────────┬────────────┬──────────╮
-│ Session Name            │ Type               │ Accounts │ Date       │       Size │ Status   │
-├─────────────────────────┼────────────────────┼──────────┼────────────┼────────────┼──────────┤
-│ inc-20261001013001      │ Incremental Backup │       29 │ 2026-10-01 │        26G │ FINISHED │
-│ full-20261001003001     │ Full Backup        │        2 │ 2026-10-01 │       8.4M │ FINISHED │
-│ distlist-20261001010001 │ Distribution List  │        1 │ 2026-10-01 │       8.0K │ FINISHED │
-╰─────────────────────────┴────────────────────┴──────────┴────────────┴────────────┴──────────╯
-  Total: 3 session(s), 32 account(s) backed up in /opt/zextras/backup (sorted by size)
-```
+
+<p align="center">
+  <img src="docs/screenshots/screen1.png" alt="CMBKP Session List Table" width="850">
+</p>
 
 Inspect accounts inside a specific session (with optional size sorting `-S`):
 
 ```bash
 # Inspect accounts in a session
-su - zextras -c "cmbkp -l full-20261001003001"
+su - zextras -c "cmbkp -l full-20261001120000"
 
 # Inspect accounts in a session sorted by size
-su - zextras -c "cmbkp -l full-20261001003001 -S"
+su - zextras -c "cmbkp -l full-20261001120000 -S"
 ```
 
 Output (matching 96-column width with session list):
-```text
-  Session Details: full-20261001003001 (Full Backup)
-╭─────┬───────────────────────────────────────────────────┬────────────┬────────────┬──────────╮
-│   # │ Account / Mailbox                                 │ Date       │       Size │ Status   │
-├─────┼───────────────────────────────────────────────────┼────────────┼────────────┼──────────┤
-│   1 │ root                                              │ 2026-10-01 │       4.2M │ FINISHED │
-│   2 │ postmaster                                        │ 2026-10-01 │       4.2M │ FINISHED │
-╰─────┴───────────────────────────────────────────────────┴────────────┴────────────┴──────────╯
-  Total: 2 account(s) in session full-20261001003001 | Total Size: 8.4M
-```
+
+<p align="center">
+  <img src="docs/screenshots/screen2.png" alt="CMBKP Session Details Sorted by Size" width="850">
+</p>
 
 ### Restoring Backups (`-r`, `--restore`)
 
@@ -278,6 +277,24 @@ MAX_PARALLEL_PROCESS=4
 ROTATE_TIME=30
 MIN_FREE_DISK_GB=5
 SESSION_TYPE=SQLITE3
+```
+
+---
+
+## Demo Dataset & Testing
+
+A mock dataset generator is included to test the TUI, verify table formatting, and reproduce these screenshots safely with test domain `cmbkp.com`:
+
+```bash
+# Generate demo environment in /tmp/cmbkp_demo
+cmbkp-demo
+# or from git repository:
+./tools/create_demo_dataset.sh
+
+# Run interactive TUI with demo dataset:
+/tmp/cmbkp_demo/run_demo_tui.sh
+# or via cmbkp CLI:
+cmbkp --config /tmp/cmbkp_demo/cmbkp.conf --tui
 ```
 
 ---
