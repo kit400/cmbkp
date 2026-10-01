@@ -1,0 +1,37 @@
+# Temporary & Log files
+*.log
+*.pid
+*.tmp
+*.swp
+*.swo
+*~
+tmp/
+
+# Backup archives & database files
+*.tgz
+*.tar.gz
+*.ldiff
+*.sqlite3
+*.sqlite3-journal
+sessions.txt
+
+# Local configuration overrides & secrets
+*.local
+*.local.conf
+cmbkp.conf.local
+cmbackup.conf.local
+!project/config/*.conf
+!project/config/*.cron
+
+# OS / Editor metadata
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
