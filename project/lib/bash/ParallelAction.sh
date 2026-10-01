@@ -106,13 +106,24 @@ function mailbox_backup()
 ###############################################################################
 function ldap_restore()
 {
-  printf "\n - Restoring LDAP from %s" "$WORKDIR/$1/$2.ldiff"
+  local ldif_file="$WORKDIR/$1/$2.ldiff"
+  if [ ! -f "$ldif_file" ]; then
+    printf "\n - Account %s: no LDAP archive (.ldiff) in session %s - skipping LDAP restore.\n" "$2" "$1"
+    return 0
+  fi
+  printf "\n - Restoring LDAP from %s\n" "$ldif_file"
+  local ERR
   ERR=$( (ldapadd -x -H "$LDAPSERVER" -D "$LDAPADMIN" \
-           -c -w "$LDAPPASS" -f "$WORKDIR"/"$1"/"$2".ldiff) 2>&1)
-  BASHERRCODE=$?
-  if ! [[ $BASHERRCODE -eq 0 ]]; then
-    printf "\nError during the restore process for account %s. Error message below:" "$2"
-    printf "\n%s: %s" "$2" "$ERR"
+           -c -w "$LDAPPASS" -f "$ldif_file") 2>&1)
+  local BASHERRCODE=$?
+  if [ $BASHERRCODE -ne 0 ]; then
+    if [[ "$ERR" == *"Already exists (68)"* ]] || [[ "$ERR" == *"ldap_add: Already exists"* ]]; then
+      printf " - Account %s already exists in LDAP (skipping LDAP creation, proceeding with mailbox data).\n" "$2"
+    else
+      printf "Error during LDAP restore for account %s:\n%s\n" "$2" "$ERR"
+    fi
+  else
+    printf " - LDAP account %s restored successfully.\n" "$2"
   fi
 }
 
@@ -124,23 +135,28 @@ function ldap_restore()
 ###############################################################################
 function mailbox_restore()
 {
-  printf "\n - Restoring Mailbox from %s" "$WORKDIR/$1/$2.tgz"
-  if ! [[ -f "$WORKDIR/$1/$2.tgz" ]]; then
-    printf "\nAccount %s has no archive in session %s - skipping..." "$2" "$1"
+  local tgz_file="$WORKDIR/$1/$2.tgz"
+  if [ ! -f "$tgz_file" ]; then
+    printf "\nAccount %s has no mailbox archive in session %s - skipping...\n" "$2" "$1"
     return 0
   fi
+  printf "\n - Restoring Mailbox from %s\n" "$tgz_file"
+  local TEMP_CLI_OUTPUT
   TEMP_CLI_OUTPUT=$(mktemp)
   zmlocalconfig -e socket_so_timeout=99999999
-  $ZMMAILBOX -t 0 -z -m "$2" postRestURL -u "$ZMMAILBOX_URL" '//?fmt=tgz&resolve=skip' "$WORKDIR"/"$1"/"$2".tgz > "$TEMP_CLI_OUTPUT" 2>&1
-  BASHERRCODE=$?
+  $ZMMAILBOX -t 0 -z -m "$2" postRestURL -u "$ZMMAILBOX_URL" '//?fmt=tgz&resolve=skip' "$tgz_file" > "$TEMP_CLI_OUTPUT" 2>&1
+  local BASHERRCODE=$?
   zmlocalconfig -u socket_so_timeout
+  local CLI_OUT
   CLI_OUT=$(cat "$TEMP_CLI_OUTPUT")
-  if ! [[ $BASHERRCODE -eq 0 ]]; then
+  if [ $BASHERRCODE -ne 0 ]; then
     if [[ "$CLI_OUT" == *"status=500"* ]]; then
-      printf "\nNotice: postRestURL returned status=500 (empty chunk/boundary) for %s, continuing." "$2"
+      printf "Notice: postRestURL returned status=500 (empty chunk/boundary) for %s, continuing.\n" "$2"
     else
-      printf "\nError during the restore process for account %s. Error message below:\n%s\n" "$2" "$CLI_OUT"
+      printf "Error during the restore process for account %s. Error message below:\n%s\n" "$2" "$CLI_OUT"
     fi
+  else
+    printf " - Mailbox %s restored successfully.\n" "$2"
   fi
   rm -rf "${TEMP_CLI_OUTPUT:?}"
 }

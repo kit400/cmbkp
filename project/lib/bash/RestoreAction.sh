@@ -62,10 +62,10 @@ function restore_main_ldap()
     SESSION=$(sqlite3 "$WORKDIR"/sessions.sqlite3 "select * from backup_session where sessionID='$1'" 2>/dev/null)
   fi
   if [ -n "$SESSION" ]; then
-    echo "Restore LDAP process with session $1 started at $(date)"
+    printf "Restore LDAP process with session %s started at %s\n" "$1" "$(date)"
     build_listRST "$1" "$2"
     parallel --jobs "$MAX_PARALLEL_PROCESS" "ldap_restore '$1' '{}'" < "$TEMPACCOUNT"
-    echo "Restore LDAP process with session $1 completed at $(date)"
+    printf "\nRestore LDAP process with session %s completed at %s\n\n" "$1" "$(date)"
   else
     echo "Session $1 not found in database. Closing..."
   fi

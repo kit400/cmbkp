@@ -84,15 +84,17 @@ function sort_accounts_by_size()
 ################################################################################
 function build_listRST()
 {
+  > "$TEMPACCOUNT"
   if [[ $2 == *"@"* ]]; then
     for i in ${2//,/ }; do
       echo "$i" >> "$TEMPACCOUNT"
     done
+    sort -u "$TEMPACCOUNT" -o "$TEMPACCOUNT"
   else
     if [[ $SESSION_TYPE == 'TXT' ]]; then
-      grep "$1:" "$WORKDIR"/sessions.txt | grep -v "SESSION" | cut -d: -f2 > "$TEMPACCOUNT"
+      grep "$1:" "$WORKDIR"/sessions.txt 2>/dev/null | grep -v "SESSION" | cut -d: -f2 | sort -u > "$TEMPACCOUNT"
     elif [[ $SESSION_TYPE == "SQLITE3" ]]; then
-      sqlite3 "$WORKDIR"/sessions.sqlite3 "select email from backup_account where sessionID='$1'" > "$TEMPACCOUNT"
+      sqlite3 "$WORKDIR"/sessions.sqlite3 "select email from backup_account where sessionID='$1'" 2>/dev/null | sort -u > "$TEMPACCOUNT"
     fi
   fi
 }
