@@ -46,10 +46,12 @@ function list_sessions_txt ()
     return 0
   fi
 
-  local col_widths=(25 12 20 10 10 12)
+  # Column order: Session Name | Type | Accounts | Date | Size | Status
+  # Date is right before Size; both Date and Size have equal width (12 chars).
+  local col_widths=(25 20 10 12 12 10)
   draw_table_border top "${col_widths[@]}"
-  printf "${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%-23s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%-10s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%-18s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%8s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%8s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%-10s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET}\n" \
-    "$BOX_V" "Session Name" "$BOX_V" "Date" "$BOX_V" "Type" "$BOX_V" "Accounts" "$BOX_V" "Size" "$BOX_V" "Status" "$BOX_V"
+  printf "${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%-23s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%-18s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%8s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%-10s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%10s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%-8s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET}\n" \
+    "$BOX_V" "Session Name" "$BOX_V" "Type" "$BOX_V" "Accounts" "$BOX_V" "Date" "$BOX_V" "Size" "$BOX_V" "Status" "$BOX_V"
   draw_table_border mid "${col_widths[@]}"
 
   local total_sessions=0
@@ -96,8 +98,8 @@ function list_sessions_txt ()
     local STATUS_CLR
     STATUS_CLR=$(get_status_color "$STATUS")
 
-    printf "${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_WHITE}%-23s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} %-10s ${CLR_GRAY}%s${CLR_RESET} %-18s ${CLR_GRAY}%s${CLR_RESET} ${CLR_CYAN}%8s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_GREEN}%8s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} %b%-10s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET}\n" \
-      "$BOX_V" "$i" "$BOX_V" "$DATE_STR" "$BOX_V" "$OPT" "$BOX_V" "$ACC_COUNT" "$BOX_V" "$SIZE" "$BOX_V" "$STATUS_CLR" "$STATUS" "$BOX_V"
+    printf "${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_WHITE}%-23s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} %-18s ${CLR_GRAY}%s${CLR_RESET} ${CLR_CYAN}%8s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} %-10s ${CLR_GRAY}%s${CLR_RESET} ${CLR_GREEN}%10s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} %b%-8s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET}\n" \
+      "$BOX_V" "$i" "$BOX_V" "$OPT" "$BOX_V" "$ACC_COUNT" "$BOX_V" "$DATE_STR" "$BOX_V" "$SIZE" "$BOX_V" "$STATUS_CLR" "$STATUS" "$BOX_V"
   done
 
   draw_table_border bot "${col_widths[@]}"
@@ -123,10 +125,12 @@ function list_sessions_sqlite3 ()
     return 0
   fi
 
-  local col_widths=(25 12 20 10 10 12)
+  # Column order: Session Name | Type | Accounts | Date | Size | Status
+  # Date is right before Size; both Date and Size have equal width (12 chars).
+  local col_widths=(25 20 10 12 12 10)
   draw_table_border top "${col_widths[@]}"
-  printf "${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%-23s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%-10s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%-18s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%8s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%8s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%-10s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET}\n" \
-    "$BOX_V" "Session Name" "$BOX_V" "Date" "$BOX_V" "Type" "$BOX_V" "Accounts" "$BOX_V" "Size" "$BOX_V" "Status" "$BOX_V"
+  printf "${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%-23s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%-18s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%8s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%-10s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%10s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%-8s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET}\n" \
+    "$BOX_V" "Session Name" "$BOX_V" "Type" "$BOX_V" "Accounts" "$BOX_V" "Date" "$BOX_V" "Size" "$BOX_V" "Status" "$BOX_V"
   draw_table_border mid "${col_widths[@]}"
 
   local total_sessions=0
@@ -152,8 +156,8 @@ function list_sessions_sqlite3 ()
     local STATUS_CLR
     STATUS_CLR=$(get_status_color "$STATUS")
 
-    printf "${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_WHITE}%-23s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} %-10s ${CLR_GRAY}%s${CLR_RESET} %-18s ${CLR_GRAY}%s${CLR_RESET} ${CLR_CYAN}%8s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_GREEN}%8s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} %b%-10s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET}\n" \
-      "$BOX_V" "$NAME" "$BOX_V" "$DATE" "$BOX_V" "$TYPE" "$BOX_V" "$ACC_COUNT" "$BOX_V" "$SIZE" "$BOX_V" "$STATUS_CLR" "$STATUS" "$BOX_V"
+    printf "${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_WHITE}%-23s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} %-18s ${CLR_GRAY}%s${CLR_RESET} ${CLR_CYAN}%8s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} %-10s ${CLR_GRAY}%s${CLR_RESET} ${CLR_GREEN}%10s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} %b%-8s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET}\n" \
+      "$BOX_V" "$NAME" "$BOX_V" "$TYPE" "$BOX_V" "$ACC_COUNT" "$BOX_V" "$DATE" "$BOX_V" "$SIZE" "$BOX_V" "$STATUS_CLR" "$STATUS" "$BOX_V"
   done <<< "$rows"
 
   draw_table_border bot "${col_widths[@]}"
@@ -185,11 +189,13 @@ function list_session_detail()
     return 1
   fi
 
-  local widths=(5 47 14 12 12)
+  # Column order: # | Account / Mailbox | Date | Size | Status
+  # Date and Size have equal width (12 chars), matching the main session list.
+  local widths=(5 51 12 12 10)
   echo ""
   printf "  ${CLR_BOLD_CYAN}%s: ${CLR_BOLD_WHITE}%s${CLR_RESET}\n" "Session Details" "$session"
   draw_table_border top "${widths[@]}"
-  printf "${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%3s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%-45s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%-12s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%10s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%-10s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET}\n" \
+  printf "${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%3s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%-49s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%-10s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%10s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%-8s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET}\n" \
     "$BOX_V" "#" "$BOX_V" "Account / Mailbox" "$BOX_V" "Date" "$BOX_V" "Size" "$BOX_V" "Status" "$BOX_V"
   draw_table_border mid "${widths[@]}"
 
@@ -226,7 +232,7 @@ function list_session_detail()
       fi
       local sclr
       sclr=$(get_status_color "$astatus")
-      printf "${CLR_GRAY}%s${CLR_RESET} ${CLR_GRAY}%3d${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_WHITE}%-45s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} %-12s ${CLR_GRAY}%s${CLR_RESET} ${CLR_GREEN}%10s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} %b%-10s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET}\n" \
+      printf "${CLR_GRAY}%s${CLR_RESET} ${CLR_GRAY}%3d${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_WHITE}%-49s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} %-10s ${CLR_GRAY}%s${CLR_RESET} ${CLR_GREEN}%10s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} %b%-8s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET}\n" \
         "$BOX_V" "$idx" "$BOX_V" "$acc" "$BOX_V" "$bdate" "$BOX_V" "$asize" "$BOX_V" "$sclr" "$astatus" "$BOX_V"
     done <<< "$acc_lines"
   elif [[ $SESSION_TYPE == 'SQLITE3' ]]; then
@@ -241,7 +247,7 @@ function list_session_detail()
       [ "$asize" == "N/A" ] && astatus="MISSING"
       local sclr
       sclr=$(get_status_color "$astatus")
-      printf "${CLR_GRAY}%s${CLR_RESET} ${CLR_GRAY}%3d${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_WHITE}%-45s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} %-12s ${CLR_GRAY}%s${CLR_RESET} ${CLR_GREEN}%10s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} %b%-10s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET}\n" \
+      printf "${CLR_GRAY}%s${CLR_RESET} ${CLR_GRAY}%3d${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_WHITE}%-49s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} %-10s ${CLR_GRAY}%s${CLR_RESET} ${CLR_GREEN}%10s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} %b%-8s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET}\n" \
         "$BOX_V" "$idx" "$BOX_V" "$acc" "$BOX_V" "$bdate" "$BOX_V" "$asize" "$BOX_V" "$sclr" "$astatus" "$BOX_V"
     done <<< "$acc_data"
   fi
