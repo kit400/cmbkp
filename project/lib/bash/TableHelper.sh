@@ -133,6 +133,38 @@ function get_status_color() {
   esac
 }
 
+# Return subtle/non-bright color code for a backup type string
+function get_type_color() {
+  local t="$1"
+  if [ -z "${CLR_RESET:-}" ]; then
+    echo ""
+    return 0
+  fi
+  local has_256=0
+  if [[ "${TERM:-}" =~ 256color ]] || [[ "${COLORTERM:-}" =~ (truecolor|24bit) ]]; then
+    has_256=1
+  fi
+
+  case "$t" in
+    *Full*)
+      echo '\033[36m' ;;        # Calm Cyan
+    *Incremental*)
+      echo '\033[33m' ;;        # Calm Amber
+    *Distribution*)
+      echo '\033[35m' ;;        # Calm Magenta
+    *Alias*)
+      if [ "$has_256" -eq 1 ]; then echo '\033[38;5;110m'; else echo '\033[34m'; fi ;; # Steel Blue / Blue
+    *LDAP*|*ldap*)
+      if [ "$has_256" -eq 1 ]; then echo '\033[38;5;248m'; else echo '\033[37m'; fi ;; # Slate Gray / Light Gray
+    *Mailbox*|*mbox*|*Mail*)
+      echo '\033[32m' ;;        # Calm Green
+    *Signature*|*sig*)
+      if [ "$has_256" -eq 1 ]; then echo '\033[38;5;174m'; else echo '\033[35m'; fi ;; # Soft Coral / Magenta
+    *)
+      echo '\033[37m' ;;        # Subtle Text
+  esac
+}
+
 # Format bytes to human readable format
 function format_bytes() {
   local b="${1:-0}"

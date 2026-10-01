@@ -97,9 +97,11 @@ function list_sessions_txt ()
 
     local STATUS_CLR
     STATUS_CLR=$(get_status_color "$STATUS")
+    local TYPE_CLR
+    TYPE_CLR=$(get_type_color "$OPT")
 
-    printf "${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_WHITE}%-23s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} %-18s ${CLR_GRAY}%s${CLR_RESET} ${CLR_CYAN}%8s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} %-10s ${CLR_GRAY}%s${CLR_RESET} ${CLR_GREEN}%10s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} %b%-8s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET}\n" \
-      "$BOX_V" "$i" "$BOX_V" "$OPT" "$BOX_V" "$ACC_COUNT" "$BOX_V" "$DATE_STR" "$BOX_V" "$SIZE" "$BOX_V" "$STATUS_CLR" "$STATUS" "$BOX_V"
+    printf "${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_WHITE}%-23s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} %b%-18s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_CYAN}%8s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} %-10s ${CLR_GRAY}%s${CLR_RESET} ${CLR_GREEN}%10s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} %b%-8s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET}\n" \
+      "$BOX_V" "$i" "$BOX_V" "$TYPE_CLR" "$OPT" "$BOX_V" "$ACC_COUNT" "$BOX_V" "$DATE_STR" "$BOX_V" "$SIZE" "$BOX_V" "$STATUS_CLR" "$STATUS" "$BOX_V"
   done
 
   draw_table_border bot "${col_widths[@]}"
@@ -155,9 +157,11 @@ function list_sessions_sqlite3 ()
 
     local STATUS_CLR
     STATUS_CLR=$(get_status_color "$STATUS")
+    local TYPE_CLR
+    TYPE_CLR=$(get_type_color "$TYPE")
 
-    printf "${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_WHITE}%-23s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} %-18s ${CLR_GRAY}%s${CLR_RESET} ${CLR_CYAN}%8s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} %-10s ${CLR_GRAY}%s${CLR_RESET} ${CLR_GREEN}%10s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} %b%-8s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET}\n" \
-      "$BOX_V" "$NAME" "$BOX_V" "$TYPE" "$BOX_V" "$ACC_COUNT" "$BOX_V" "$DATE" "$BOX_V" "$SIZE" "$BOX_V" "$STATUS_CLR" "$STATUS" "$BOX_V"
+    printf "${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_WHITE}%-23s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} %b%-18s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_CYAN}%8s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} %-10s ${CLR_GRAY}%s${CLR_RESET} ${CLR_GREEN}%10s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} %b%-8s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET}\n" \
+      "$BOX_V" "$NAME" "$BOX_V" "$TYPE_CLR" "$TYPE" "$BOX_V" "$ACC_COUNT" "$BOX_V" "$DATE" "$BOX_V" "$SIZE" "$BOX_V" "$STATUS_CLR" "$STATUS" "$BOX_V"
   done <<< "$rows"
 
   draw_table_border bot "${col_widths[@]}"
@@ -189,12 +193,31 @@ function list_session_detail()
     return 1
   fi
 
+  local sess_prefix; sess_prefix=$(echo "$session" | cut -d"-" -f1)
+  local type_name=""
+  case "$sess_prefix" in
+    "full")            type_name="Full Backup" ;;
+    "inc")             type_name="Incremental Backup" ;;
+    "distlist")        type_name="Distribution List" ;;
+    "alias")           type_name="Alias Backup" ;;
+    "ldap")            type_name="Account (LDAP)" ;;
+    "mbox"|"mail")     type_name="Mailbox Backup" ;;
+    "sig"|"signature") type_name="Signature Backup" ;;
+    *)                 type_name="" ;;
+  esac
+
   # Column order: # | Account / Mailbox | Date | Size | Status
   # Date and Size have equal width (12 chars), matching the main session list.
   local widths=(5 51 12 12 10)
   echo ""
-  printf "  ${CLR_BOLD_CYAN}%s: ${CLR_BOLD_WHITE}%s${CLR_RESET}\n" "Session Details" "$session"
+  if [ -n "$type_name" ]; then
+    local type_clr; type_clr=$(get_type_color "$type_name")
+    printf "  ${CLR_BOLD_CYAN}%s: ${CLR_BOLD_WHITE}%s${CLR_RESET} %b(%s)${CLR_RESET}\n" "Session Details" "$session" "$type_clr" "$type_name"
+  else
+    printf "  ${CLR_BOLD_CYAN}%s: ${CLR_BOLD_WHITE}%s${CLR_RESET}\n" "Session Details" "$session"
+  fi
   draw_table_border top "${widths[@]}"
+
   printf "${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%3s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%-49s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%-10s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%10s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%-8s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET}\n" \
     "$BOX_V" "#" "$BOX_V" "Account / Mailbox" "$BOX_V" "Date" "$BOX_V" "Size" "$BOX_V" "Status" "$BOX_V"
   draw_table_border mid "${widths[@]}"
