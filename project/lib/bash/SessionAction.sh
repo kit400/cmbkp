@@ -35,14 +35,14 @@ function list_sessions_txt ()
   init_table_theme
 
   if [ ! -f "$WORKDIR/sessions.txt" ]; then
-    draw_empty_box "No backup sessions found in $WORKDIR" 64
+    draw_empty_box "No backup sessions found in $WORKDIR" 96
     return 0
   fi
 
   local session_list
   session_list=$(grep -E 'SESSION:' "$WORKDIR"/sessions.txt 2>/dev/null | grep 'started' | awk '{print $2}' | sort -u)
   if [ -z "$session_list" ]; then
-    draw_empty_box "No backup sessions found in $WORKDIR" 64
+    draw_empty_box "No backup sessions found in $WORKDIR" 96
     return 0
   fi
 
@@ -112,14 +112,14 @@ function list_sessions_sqlite3 ()
   init_table_theme
 
   if [ ! -f "$WORKDIR/sessions.sqlite3" ]; then
-    draw_empty_box "No SQLite3 database found in $WORKDIR" 64
+    draw_empty_box "No SQLite3 database found in $WORKDIR" 96
     return 0
   fi
 
   local rows
   rows=$(sqlite3 "$WORKDIR/sessions.sqlite3" "SELECT sessionID, date(initial_date), type, size, status FROM backup_session ORDER BY initial_date DESC;" 2>/dev/null)
   if [ -z "$rows" ]; then
-    draw_empty_box "No backup sessions found in $WORKDIR" 64
+    draw_empty_box "No backup sessions found in $WORKDIR" 96
     return 0
   fi
 
@@ -181,16 +181,16 @@ function list_session_detail()
   [ -d "$WORKDIR/$session" ] && session_exists=1
 
   if [ "$session_exists" -eq 0 ]; then
-    draw_empty_box "Session '$session' not found in $WORKDIR" 64
+    draw_empty_box "Session '$session' not found in $WORKDIR" 96
     return 1
   fi
 
-  local widths=(5 44 12 12 10)
+  local widths=(5 47 14 12 12)
   echo ""
   printf "  ${CLR_BOLD_CYAN}%s: ${CLR_BOLD_WHITE}%s${CLR_RESET}\n" "Session Details" "$session"
   draw_table_border top "${widths[@]}"
-  printf "${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%3s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%-42s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%10s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%-10s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%-8s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET}\n" \
-    "$BOX_V" "#" "$BOX_V" "Account / Mailbox" "$BOX_V" "Size" "$BOX_V" "Date" "$BOX_V" "Status" "$BOX_V"
+  printf "${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%3s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%-45s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%-12s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%10s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%-10s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET}\n" \
+    "$BOX_V" "#" "$BOX_V" "Account / Mailbox" "$BOX_V" "Date" "$BOX_V" "Size" "$BOX_V" "Status" "$BOX_V"
   draw_table_border mid "${widths[@]}"
 
   local idx=0
@@ -200,6 +200,20 @@ function list_session_detail()
     while IFS=':' read -r _s acc bdate; do
       [ -z "$acc" ] && continue
       idx=$((idx + 1))
+
+      # Normalize date to YYYY-MM-DD
+      if [[ "$bdate" =~ ^([0-9]{2})/([0-9]{2})/([0-9]{2})$ ]]; then
+        bdate="20${BASH_REMATCH[3]}-${BASH_REMATCH[1]}-${BASH_REMATCH[2]}"
+      elif [ -z "$bdate" ]; then
+        local raw_ts
+        raw_ts=$(echo "$session" | cut -d'-' -f2)
+        if [ -n "$raw_ts" ]; then
+          bdate="${raw_ts:0:4}-${raw_ts:4:2}-${raw_ts:6:2}"
+        else
+          bdate="Unknown"
+        fi
+      fi
+
       local asize="N/A"
       local astatus="MISSING"
       if [ -d "$WORKDIR/$session" ]; then
@@ -207,13 +221,13 @@ function list_session_detail()
         found_files=$(ls -1 "$WORKDIR/$session/$acc"* 2>/dev/null)
         if [ -n "$found_files" ]; then
           asize=$(du -ch "$WORKDIR/$session/$acc"* 2>/dev/null | grep total | awk '{print $1}')
-          astatus="OK"
+          astatus="FINISHED"
         fi
       fi
       local sclr
       sclr=$(get_status_color "$astatus")
-      printf "${CLR_GRAY}%s${CLR_RESET} ${CLR_GRAY}%3d${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_WHITE}%-42s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_GREEN}%10s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} %-10s ${CLR_GRAY}%s${CLR_RESET} %b%-8s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET}\n" \
-        "$BOX_V" "$idx" "$BOX_V" "$acc" "$BOX_V" "$asize" "$BOX_V" "$bdate" "$BOX_V" "$sclr" "$astatus" "$BOX_V"
+      printf "${CLR_GRAY}%s${CLR_RESET} ${CLR_GRAY}%3d${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_WHITE}%-45s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} %-12s ${CLR_GRAY}%s${CLR_RESET} ${CLR_GREEN}%10s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} %b%-10s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET}\n" \
+        "$BOX_V" "$idx" "$BOX_V" "$acc" "$BOX_V" "$bdate" "$BOX_V" "$asize" "$BOX_V" "$sclr" "$astatus" "$BOX_V"
     done <<< "$acc_lines"
   elif [[ $SESSION_TYPE == 'SQLITE3' ]]; then
     local acc_data
@@ -222,17 +236,18 @@ function list_session_detail()
       [ -z "$acc" ] && continue
       idx=$((idx + 1))
       [ -z "$asize" ] && asize="N/A"
-      local astatus="OK"
+      [ -z "$bdate" ] && bdate="Unknown"
+      local astatus="FINISHED"
       [ "$asize" == "N/A" ] && astatus="MISSING"
       local sclr
       sclr=$(get_status_color "$astatus")
-      printf "${CLR_GRAY}%s${CLR_RESET} ${CLR_GRAY}%3d${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_WHITE}%-42s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_GREEN}%10s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} %-10s ${CLR_GRAY}%s${CLR_RESET} %b%-8s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET}\n" \
-        "$BOX_V" "$idx" "$BOX_V" "$acc" "$BOX_V" "$asize" "$BOX_V" "$bdate" "$BOX_V" "$sclr" "$astatus" "$BOX_V"
+      printf "${CLR_GRAY}%s${CLR_RESET} ${CLR_GRAY}%3d${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_WHITE}%-45s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} %-12s ${CLR_GRAY}%s${CLR_RESET} ${CLR_GREEN}%10s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} %b%-10s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET}\n" \
+        "$BOX_V" "$idx" "$BOX_V" "$acc" "$BOX_V" "$bdate" "$BOX_V" "$asize" "$BOX_V" "$sclr" "$astatus" "$BOX_V"
     done <<< "$acc_data"
   fi
 
   draw_table_border bot "${widths[@]}"
   local sess_size="N/A"
   [ -d "$WORKDIR/$session" ] && sess_size=$(du -sh "$WORKDIR/$session" 2>/dev/null | awk '{print $1}')
-  printf "  ${CLR_DIM}Session: %s | Total Accounts: %d | Total Size: %s${CLR_RESET}\n\n" "$session" "$idx" "$sess_size"
+  printf "  ${CLR_DIM}Total: %d account(s) in session %s | Total Size: %s${CLR_RESET}\n\n" "$idx" "$session" "$sess_size"
 }

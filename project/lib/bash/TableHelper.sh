@@ -154,7 +154,7 @@ function format_bytes() {
 # Display a styled empty-state or notification box
 function draw_empty_box() {
   local msg="$1"
-  local width="${2:-64}"
+  local width="${2:-96}"
   local inner_width=$((width - 4))
   init_table_theme
   local seg

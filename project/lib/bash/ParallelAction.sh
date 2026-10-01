@@ -154,7 +154,7 @@ function audit_mailboxes()
   init_table_theme
 
   if [ -n "$target_account" ]; then
-    local widths=(42 12 14 10)
+    local widths=(51 14 14 12)
     local msgs
     msgs=$($ZMMAILBOX -z -m "$target_account" gaf 2>/dev/null | awk '$1 ~ /^[0-9]+$/ && $3 ~ /^[0-9]+$/ && $4 ~ /^[0-9]+$/ {sum += $4} END {print sum+0}')
     local bytes
@@ -170,10 +170,10 @@ function audit_mailboxes()
     echo ""
     printf "  ${CLR_BOLD_CYAN}%s: ${CLR_BOLD_WHITE}%s${CLR_RESET}\n" "Mailbox Audit" "$target_account"
     draw_table_border top "${widths[@]}"
-    printf "${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%-40s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%10s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%12s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%-8s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET}\n" \
-      "$BOX_V" "Account" "$BOX_V" "Messages" "$BOX_V" "Mailbox Size" "$BOX_V" "Status" "$BOX_V"
+    printf "${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%-49s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%12s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%12s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%-10s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET}\n" \
+      "$BOX_V" "Account / Mailbox" "$BOX_V" "Messages" "$BOX_V" "Mailbox Size" "$BOX_V" "Status" "$BOX_V"
     draw_table_border mid "${widths[@]}"
-    printf "${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_WHITE}%-40s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_CYAN}%10d${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_GREEN}%12s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} %b%-8s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET}\n" \
+    printf "${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_WHITE}%-49s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_CYAN}%12d${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_GREEN}%12s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} %b%-10s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET}\n" \
       "$BOX_V" "$target_account" "$BOX_V" "${msgs:-0}" "$BOX_V" "$hsize" "$BOX_V" "$sclr" "$astatus" "$BOX_V"
     draw_table_border bot "${widths[@]}"
     echo ""
@@ -200,14 +200,14 @@ function audit_mailboxes()
   done
 
   if [ "${#accounts[@]}" -eq 0 ]; then
-    draw_empty_box "No active accounts found to audit." 64
+    draw_empty_box "No active accounts found to audit." 96
     rm -f "$gqu_cache"
     return 0
   fi
 
-  local widths=(5 42 12 14 10)
+  local widths=(5 45 14 14 12)
   draw_table_border top "${widths[@]}"
-  printf "${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%3s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%-40s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%10s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%12s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%-8s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET}\n" \
+  printf "${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%3s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%-43s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%12s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%12s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%-10s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET}\n" \
     "$BOX_V" "#" "$BOX_V" "Account / Mailbox" "$BOX_V" "Messages" "$BOX_V" "Mailbox Size" "$BOX_V" "Status" "$BOX_V"
   draw_table_border mid "${widths[@]}"
 
@@ -233,7 +233,7 @@ function audit_mailboxes()
     local sclr
     sclr=$(get_status_color "$astatus")
 
-    printf "${CLR_GRAY}%s${CLR_RESET} ${CLR_GRAY}%3d${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_WHITE}%-40s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_CYAN}%10d${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_GREEN}%12s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} %b%-8s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET}\n" \
+    printf "${CLR_GRAY}%s${CLR_RESET} ${CLR_GRAY}%3d${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_WHITE}%-43s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_CYAN}%12d${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_GREEN}%12s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} %b%-10s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET}\n" \
       "$BOX_V" "$idx" "$BOX_V" "$acc" "$BOX_V" "${msgs:-0}" "$BOX_V" "$hsize" "$BOX_V" "$sclr" "$astatus" "$BOX_V"
   done
 

@@ -76,11 +76,11 @@ function check_config() {
   local masked_pass="********"
   [ -z "$OSE_INSTALL_LDAPPASS" ] && masked_pass="(none)"
 
-  local widths=(32 46)
+  local widths=(36 57)
   echo ""
   printf "  %b%s%b\n" "${CLR_BOLD_CYAN:-}" "Installation Configuration Summary" "${CLR_RESET:-}"
   draw_table_border top "${widths[@]}"
-  printf "%b%s%b %b%-30s%b %b%s%b %b%-44s%b %b%s%b\n" \
+  printf "%b%s%b %b%-34s%b %b%s%b %b%-55s%b %b%s%b\n" \
     "${CLR_GRAY:-}" "$BOX_V" "${CLR_RESET:-}" "${CLR_BOLD_CYAN:-}" "Parameter" "${CLR_RESET:-}" \
     "${CLR_GRAY:-}" "$BOX_V" "${CLR_RESET:-}" "${CLR_BOLD_CYAN:-}" "Value" "${CLR_RESET:-}" \
     "${CLR_GRAY:-}" "$BOX_V" "${CLR_RESET:-}"
@@ -103,7 +103,7 @@ function check_config() {
   for ((i=0; i<${#params[@]}; i+=2)); do
     local key="${params[i]}"
     local val="${params[i+1]}"
-    printf "%b%s%b %b%-30s%b %b%s%b %b%-44s%b %b%s%b\n" \
+    printf "%b%s%b %b%-34s%b %b%s%b %b%-55s%b %b%s%b\n" \
       "${CLR_GRAY:-}" "$BOX_V" "${CLR_RESET:-}" "${CLR_BOLD_WHITE:-}" "$key" "${CLR_RESET:-}" \
       "${CLR_GRAY:-}" "$BOX_V" "${CLR_RESET:-}" "${CLR_GREEN:-}" "$val" "${CLR_RESET:-}" \
       "${CLR_GRAY:-}" "$BOX_V" "${CLR_RESET:-}"
