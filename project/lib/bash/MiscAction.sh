@@ -342,6 +342,30 @@ function export_function(){
   export -f verify_account_messages
   export -f audit_mailboxes
   export -f parse_size_bytes
+  export -f cmbkp_sqlite
+}
+
+################################################################################
+# cmbkp_sqlite: Query SQLite3 database with sqlite3 binary or python3 fallback
+################################################################################
+function cmbkp_sqlite() {
+  local db_file="$1"
+  local sql_query="$2"
+  if command -v sqlite3 &>/dev/null; then
+    sqlite3 "$db_file" "$sql_query" 2>/dev/null
+  elif command -v python3 &>/dev/null; then
+    python3 -c "
+import sqlite3, sys
+try:
+    conn = sqlite3.connect(sys.argv[1])
+    c = conn.cursor()
+    for row in c.execute(sys.argv[2]):
+        print('|'.join('' if v is None else str(v) for v in row))
+    conn.close()
+except Exception:
+    pass
+" "$db_file" "$sql_query" 2>/dev/null
+  fi
 }
 
 ################################################################################

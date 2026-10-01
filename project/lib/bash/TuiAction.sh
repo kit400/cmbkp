@@ -39,6 +39,11 @@ function tui_pause() {
 # tui_get_all_accounts: Fetch active accounts via LDAP or zmprov
 ################################################################################
 function tui_get_all_accounts() {
+  if [ -n "$CMBKP_ACCOUNTS_FILE" ] && [ -f "$CMBKP_ACCOUNTS_FILE" ]; then
+    cat "$CMBKP_ACCOUNTS_FILE"
+    return 0
+  fi
+
   local cache_file="/tmp/cmbkp_acc_cache_$UID"
   local now
   now=$(date +%s)
@@ -90,9 +95,10 @@ function tui_preview_account() {
   printf "${CLR_BOLD_CYAN}══════════════════════════════════════════════════════════════════${CLR_RESET}\n\n"
 
   # Live Mailbox Storage (from gqu cache if available)
-  if [ -f "/tmp/gqu.txt" ]; then
+  local gqu_cache="${CMBKP_GQU_FILE:-/tmp/gqu.txt}"
+  if [ -f "$gqu_cache" ]; then
     local live_bytes
-    live_bytes=$(awk -v a="$acc" '$1 == a {print $3}' /tmp/gqu.txt 2>/dev/null)
+    live_bytes=$(awk -v a="$acc" '$1 == a {print $3}' "$gqu_cache" 2>/dev/null)
     if [ -n "$live_bytes" ]; then
       printf " ${CLR_BOLD}Live Mailbox Storage:${CLR_RESET} %s\n\n" "$(format_bytes "$live_bytes")"
     fi
@@ -103,7 +109,7 @@ function tui_preview_account() {
 
   if [[ "${SESSION_TYPE:-TXT}" == "SQLITE3" ]] && [ -f "$WORKDIR/sessions.sqlite3" ]; then
     local db_sessions
-    db_sessions=$(sqlite3 "$WORKDIR/sessions.sqlite3" "SELECT sessionID, date(conclusion_date), account_size FROM backup_account WHERE email='$acc' ORDER BY conclusion_date DESC;" 2>/dev/null)
+    db_sessions=$(cmbkp_sqlite "$WORKDIR/sessions.sqlite3" "SELECT sessionID, date(conclusion_date), account_size FROM backup_account WHERE email='$acc' ORDER BY conclusion_date DESC;")
     while IFS='|' read -r sess bdate asize; do
       [ -z "$sess" ] && continue
       found_count=$((found_count + 1))
@@ -120,7 +126,7 @@ function tui_preview_account() {
         found_count=$((found_count + 1))
         local sz="N/A"
         if [ -d "$WORKDIR/$sess" ]; then
-          sz=$(du -ch "$WORKDIR/$sess/$acc"* 2>/dev/null | grep total | awk '{print $1}')
+          sz=$(du -ch --apparent-size "$WORKDIR/$sess/$acc"* 2>/dev/null | grep total | awk '{print $1}')
           [ -z "$sz" ] && sz="N/A"
         fi
         local tclr
@@ -177,7 +183,7 @@ function tui_preview_session() {
   printf "${CLR_BOLD_CYAN}══════════════════════════════════════════════════════════════════${CLR_RESET}\n\n"
 
   local total_sz="N/A"
-  [ -d "$WORKDIR/$sess" ] && total_sz=$(du -sh "$WORKDIR/$sess" 2>/dev/null | awk '{print $1}')
+  [ -d "$WORKDIR/$sess" ] && total_sz=$(du -sh --apparent-size "$WORKDIR/$sess" 2>/dev/null | awk '{print $1}')
   printf " ${CLR_BOLD}Directory:${CLR_RESET} %s/%s\n" "$WORKDIR" "$sess"
   printf " ${CLR_BOLD}Total Size:${CLR_RESET} %s\n\n" "$total_sz"
 
@@ -185,7 +191,7 @@ function tui_preview_session() {
   local acc_count=0
   if [[ "${SESSION_TYPE:-TXT}" == "SQLITE3" ]] && [ -f "$WORKDIR/sessions.sqlite3" ]; then
     local db_accs
-    db_accs=$(sqlite3 "$WORKDIR/sessions.sqlite3" "SELECT email, account_size FROM backup_account WHERE sessionID='$sess' LIMIT 20;" 2>/dev/null)
+    db_accs=$(cmbkp_sqlite "$WORKDIR/sessions.sqlite3" "SELECT email, account_size FROM backup_account WHERE sessionID='$sess' LIMIT 20;")
     while IFS='|' read -r email asize; do
       [ -z "$email" ] && continue
       acc_count=$((acc_count + 1))
@@ -198,7 +204,7 @@ function tui_preview_session() {
         acc_count=$((acc_count + 1))
         local asz="N/A"
         if [ -d "$WORKDIR/$sess" ]; then
-          asz=$(du -ch "$WORKDIR/$sess/$email"* 2>/dev/null | grep total | awk '{print $1}')
+          asz=$(du -ch --apparent-size "$WORKDIR/$sess/$email"* 2>/dev/null | grep total | awk '{print $1}')
           [ -z "$asz" ] && asz="N/A"
         fi
         printf "   %b●%b %-40s %8s\n" "${CLR_BOLD_CYAN:-}" "${CLR_RESET:-}" "$email" "$asz"
@@ -219,6 +225,8 @@ function tui_preview_session() {
 function tui_select_account() {
   local prompt_str="${1:-Search Account > }"
   local multi="${2:-false}"
+  local preview_cmd="cmbkp"
+  [ -n "$CMBKP_CONF" ] && preview_cmd="cmbkp --config $CMBKP_CONF"
   local fzf_flags=(
     "--prompt=$prompt_str"
     "--height=85%"
@@ -227,7 +235,7 @@ function tui_select_account() {
     "--margin=1"
     "--padding=1"
     "--info=inline"
-    "--preview=cmbkp --preview-account {1}"
+    "--preview=$preview_cmd --preview-account {1}"
     "--preview-window=right:50%:wrap"
     "--header=↑/↓: Navigate | Enter: Select | Esc: Cancel $([ "$multi" == "true" ] && echo "| Tab: Multi-select")"
   )
@@ -354,13 +362,13 @@ function tui_restore_flow() {
   if [[ "${SESSION_TYPE:-TXT}" == "SQLITE3" ]] && [ -f "$WORKDIR/sessions.sqlite3" ]; then
     while IFS='|' read -r s bdate asz; do
       [ -n "$s" ] && session_candidates+=("$(printf "%-26s │ %-10s │ %8s" "$s" "${bdate:-Unknown}" "${asz:-N/A}")")
-    done < <(sqlite3 "$WORKDIR/sessions.sqlite3" "SELECT sessionID, date(conclusion_date), account_size FROM backup_account WHERE email='$selected_account' ORDER BY conclusion_date DESC;" 2>/dev/null)
+    done < <(cmbkp_sqlite "$WORKDIR/sessions.sqlite3" "SELECT sessionID, date(conclusion_date), account_size FROM backup_account WHERE email='$selected_account' ORDER BY conclusion_date DESC;")
   else
     if [ -f "$WORKDIR/sessions.txt" ]; then
       while IFS=':' read -r s _a bdate; do
         if [ -n "$s" ]; then
           local asz="N/A"
-          [ -d "$WORKDIR/$s" ] && asz=$(du -ch "$WORKDIR/$s/$selected_account"* 2>/dev/null | grep total | awk '{print $1}')
+          [ -d "$WORKDIR/$s" ] && asz=$(du -ch --apparent-size "$WORKDIR/$s/$selected_account"* 2>/dev/null | grep total | awk '{print $1}')
           session_candidates+=("$(printf "%-26s │ %-10s │ %8s" "$s" "${bdate:-Unknown}" "${asz:-N/A}")")
         fi
       done < <(grep ":$selected_account:" "$WORKDIR/sessions.txt" 2>/dev/null | sort -u)
@@ -374,6 +382,8 @@ function tui_restore_flow() {
   fi
 
   printf "  %b●%b %b%s%b\n" "${CLR_BOLD_CYAN:-}" "${CLR_RESET:-}" "${CLR_BOLD_CYAN:-}" "Step 2: Select Backup Session to Restore From" "${CLR_RESET:-}"
+  local preview_cmd="cmbkp"
+  [ -n "$CMBKP_CONF" ] && preview_cmd="cmbkp --config $CMBKP_CONF"
   local fzf_sess_flags=(
     "--prompt=Select Backup Session > "
     "--height=70%"
@@ -381,7 +391,7 @@ function tui_restore_flow() {
     "--border=rounded"
     "--margin=1"
     "--header=Session ID                  │ Date       │ Size      (Enter: Confirm | Esc: Cancel)"
-    "--preview=cmbkp --preview-session {1}"
+    "--preview=$preview_cmd --preview-session {1}"
     "--preview-window=right:50%:wrap"
   )
 
@@ -481,7 +491,7 @@ function tui_session_browser() {
   elif [ -f "$WORKDIR/sessions.sqlite3" ]; then
     while IFS= read -r s; do
       [ -n "$s" ] && sessions+=("$s")
-    done < <(sqlite3 "$WORKDIR/sessions.sqlite3" "SELECT sessionID FROM backup_session ORDER BY initial_date DESC;" 2>/dev/null)
+    done < <(cmbkp_sqlite "$WORKDIR/sessions.sqlite3" "SELECT sessionID FROM backup_session ORDER BY initial_date DESC;")
   fi
 
   if [ "${#sessions[@]}" -eq 0 ]; then
@@ -490,6 +500,8 @@ function tui_session_browser() {
     return 0
   fi
 
+  local preview_cmd="cmbkp"
+  [ -n "$CMBKP_CONF" ] && preview_cmd="cmbkp --config $CMBKP_CONF"
   local chosen_session
   chosen_session=$(printf "%s\n" "${sessions[@]}" | fzf \
     --prompt="Select Session > " \
@@ -498,7 +510,7 @@ function tui_session_browser() {
     --border=rounded \
     --margin=1 \
     --header="Enter: View Detailed Accounts Table | Esc: Return" \
-    --preview="cmbkp --preview-session {1}" \
+    --preview="$preview_cmd --preview-session {1}" \
     --preview-window=right:55%:wrap)
 
   if [ -n "$chosen_session" ]; then

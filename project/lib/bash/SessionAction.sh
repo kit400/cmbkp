@@ -88,7 +88,7 @@ function list_sessions_txt ()
     local SIZE="N/A"
     local raw_bytes=0
     if [ -d "$WORKDIR/$i" ]; then
-      SIZE=$(du -sh "$WORKDIR/$i" 2>/dev/null | awk '{print $1}')
+      SIZE=$(du -sh --apparent-size "$WORKDIR/$i" 2>/dev/null | awk '{print $1}')
       raw_bytes=$(du -sb "$WORKDIR/$i" 2>/dev/null | awk '{print $1}')
       [ -z "$raw_bytes" ] && raw_bytes=$(parse_size_bytes "$SIZE")
     fi
@@ -179,7 +179,7 @@ function list_sessions_sqlite3 ()
   fi
 
   local rows
-  rows=$(sqlite3 "$WORKDIR/sessions.sqlite3" "SELECT sessionID, date(initial_date), type, size, status FROM backup_session ORDER BY initial_date DESC;" 2>/dev/null)
+  rows=$(cmbkp_sqlite "$WORKDIR/sessions.sqlite3" "SELECT sessionID, date(initial_date), type, size, status FROM backup_session ORDER BY initial_date DESC;")
   if [ -z "$rows" ]; then
     draw_empty_box "No backup sessions found in $WORKDIR" 96
     return 0
@@ -202,13 +202,13 @@ function list_sessions_sqlite3 ()
     total_sessions=$((total_sessions + 1))
 
     local ACC_COUNT
-    ACC_COUNT=$(sqlite3 "$WORKDIR/sessions.sqlite3" "SELECT count(*) FROM backup_account WHERE sessionID='$NAME';" 2>/dev/null || echo 0)
+    ACC_COUNT=$(cmbkp_sqlite "$WORKDIR/sessions.sqlite3" "SELECT count(*) FROM backup_account WHERE sessionID='$NAME';" || echo 0)
     total_accounts=$((total_accounts + ACC_COUNT))
 
     local raw_bytes=0
     if [ -z "$SIZE" ] || [ "$SIZE" == "null" ]; then
       if [ -d "$WORKDIR/$NAME" ]; then
-        SIZE=$(du -sh "$WORKDIR/$NAME" 2>/dev/null | awk '{print $1}')
+        SIZE=$(du -sh --apparent-size "$WORKDIR/$NAME" 2>/dev/null | awk '{print $1}')
         raw_bytes=$(du -sb "$WORKDIR/$NAME" 2>/dev/null | awk '{print $1}')
       else
         SIZE="N/A"
@@ -292,7 +292,7 @@ function list_session_detail()
     fi
   elif [[ $SESSION_TYPE == 'SQLITE3' ]]; then
     local cnt
-    cnt=$(sqlite3 "$WORKDIR/sessions.sqlite3" "SELECT count(*) FROM backup_session WHERE sessionID='$session';" 2>/dev/null || echo 0)
+    cnt=$(cmbkp_sqlite "$WORKDIR/sessions.sqlite3" "SELECT count(*) FROM backup_session WHERE sessionID='$session';" || echo 0)
     [ "$cnt" -gt 0 ] && session_exists=1
   fi
   [ -d "$WORKDIR/$session" ] && session_exists=1
@@ -358,7 +358,7 @@ function list_session_detail()
         local found_files
         found_files=$(ls -1 "$WORKDIR/$session/$acc"* 2>/dev/null)
         if [ -n "$found_files" ]; then
-          asize=$(du -ch "$WORKDIR/$session/$acc"* 2>/dev/null | grep total | awk '{print $1}')
+          asize=$(du -ch --apparent-size "$WORKDIR/$session/$acc"* 2>/dev/null | grep total | awk '{print $1}')
           raw_bytes=$(du -cb "$WORKDIR/$session/$acc"* 2>/dev/null | grep total | awk '{print $1}')
           [ -z "$raw_bytes" ] && raw_bytes=$(parse_size_bytes "$asize")
           astatus="FINISHED"
@@ -369,7 +369,7 @@ function list_session_detail()
     done <<< "$acc_lines"
   elif [[ $SESSION_TYPE == 'SQLITE3' ]]; then
     local acc_data
-    acc_data=$(sqlite3 "$WORKDIR/sessions.sqlite3" "SELECT email, account_size, date(conclusion_date) FROM backup_account WHERE sessionID='$session';" 2>/dev/null)
+    acc_data=$(cmbkp_sqlite "$WORKDIR/sessions.sqlite3" "SELECT email, account_size, date(conclusion_date) FROM backup_account WHERE sessionID='$session';")
     while IFS='|' read -r acc asize bdate; do
       [ -z "$acc" ] && continue
       [ -z "$asize" ] && asize="N/A"
@@ -409,7 +409,7 @@ function list_session_detail()
 
   draw_table_border bot "${widths[@]}"
   local sess_size="N/A"
-  [ -d "$WORKDIR/$session" ] && sess_size=$(du -sh "$WORKDIR/$session" 2>/dev/null | awk '{print $1}')
+  [ -d "$WORKDIR/$session" ] && sess_size=$(du -sh --apparent-size "$WORKDIR/$session" 2>/dev/null | awk '{print $1}')
   if [[ "${SORT_BY:-}" == "size"* ]]; then
     printf "  ${CLR_DIM}Total: %d account(s) in session %s | Total Size: %s (sorted by size)${CLR_RESET}\n\n" "$idx" "$session" "$sess_size"
   else
