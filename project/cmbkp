@@ -274,7 +274,7 @@ case "$1" in
     show_help
   ;;
   "-v"|"--version" )
-    echo "cmbkp version: 1.3.0 (alias: cmbackup)"
+    echo "cmbkp version: 1.3.1 (alias: cmbackup)"
   ;;
   "-m"|"--migrate" )
     checkpid

@@ -36,7 +36,7 @@ ZMBKP_MAIL_SENDER="cmbkp@${OSE_INSTALL_DOMAIN}"
 MAX_PARALLEL_PROCESS="3"                                                                                                                       # Cmbkp's number of threads
 ROTATE_TIME="30"                                                                                                                               # Cmbkp's max of days before housekeeper
 LOCK_BACKUP=true                                                                                                                               # Cmbkp's backup lock
-ZMBKP_VERSION="cmbkp version: 1.3.0 (alias: cmbackup)"                                                                                         # Cmbkp's latest version
+ZMBKP_VERSION="cmbkp version: 1.3.1 (alias: cmbackup)"                                                                                         # Cmbkp's latest version
 SESSION_TYPE="TXT"                                                                                                                             # Cmbkp's default session type
 
 # Force a terminal type - Issue #90
