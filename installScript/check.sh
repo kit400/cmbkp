@@ -39,15 +39,16 @@ function check_env() {
     printf "%b[UNINSTALL]%b - Executing uninstall routine\n" "${CLR_BOLD_YELLOW:-}" "${CLR_RESET:-}"
     export UPGRADE="N"
     export UNINSTALL="Y"
-  elif [[ $1 == '--force-upgrade' ]]; then
+  else
     VERSION=$(su -s /bin/bash -c "cmbkp -v 2>/dev/null || cmbackup -v 2>/dev/null" "$OSE_USER")
-    if [[ "$VERSION" != "$ZMBKP_VERSION" ]]; then
-      printf "%b[OLD VERSION]%b - Executing upgrade routine\n" "${CLR_BOLD_YELLOW:-}" "${CLR_RESET:-}"
+    if [[ "$VERSION" != "$ZMBKP_VERSION" ]] || [[ "$1" == '--force-upgrade' ]] || [[ "$1" == '--upgrade' ]] || [[ "$1" == '-u' ]]; then
+      printf "%b[UPGRADE]%b - Upgrading %s to %s\n" "${CLR_BOLD_YELLOW:-}" "${CLR_RESET:-}" "${VERSION:-older cmbackup}" "$ZMBKP_VERSION"
       export UPGRADE="Y"
       export UNINSTALL="N"
     else
-      printf "%b[NEWEST VERSION]%b - Nothing to do...\n" "${CLR_BOLD_GREEN:-}" "${CLR_RESET:-}"
-      exit 0
+      printf "%b[LATEST]%b - %s is already installed\n" "${CLR_BOLD_GREEN:-}" "${CLR_RESET:-}" "$ZMBKP_VERSION"
+      export UPGRADE="Y"
+      export UNINSTALL="N"
     fi
   fi
 

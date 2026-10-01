@@ -120,7 +120,7 @@ function deploy_upgrade(){
   mkdir -p "$OSE_INSTALL_DIR"/.parallel > /dev/null 2>&1 && touch "$OSE_INSTALL_DIR"/.parallel/will-cite
   chown -R "$OSE_USER":"$OSE_USER" "$OSE_INSTALL_DIR"/.parallel
 
-  # Copy files
+  # Copy binary and setup alias symlink
   install -o "$OSE_USER" -g "$OSE_USER" -m 755 "$MYDIR"/project/cmbkp "$ZMBKP_SRC"/cmbkp
   ln -sf "$ZMBKP_SRC"/cmbkp "$ZMBKP_SRC"/cmbackup
   echo -ne '###############       (75%)\r'
@@ -129,7 +129,19 @@ function deploy_upgrade(){
   chown -R "$OSE_USER":"$OSE_USER" "$ZMBKP_LIB"
   chmod -R 755 "$ZMBKP_LIB"
   [ "$ZMBKP_LIB" != "/usr/local/lib/cmbackup" ] && ln -sfn "$ZMBKP_LIB" /usr/local/lib/cmbackup
-  [ "$ZMBKP_CONF" != "/etc/cmbackup" ] && ln -sfn "$ZMBKP_CONF" /etc/cmbackup
+  if [ -d "/etc/cmbackup" ] && [ ! -L "/etc/cmbackup" ]; then
+    if [ ! -d "$ZMBKP_CONF" ]; then
+      mv /etc/cmbackup "$ZMBKP_CONF"
+    else
+      cp -rn /etc/cmbackup/* "$ZMBKP_CONF"/ 2>/dev/null || true
+      rm -rf /etc/cmbackup
+    fi
+    ln -sfn "$ZMBKP_CONF" /etc/cmbackup
+  fi
+  test -d "$ZMBKP_CONF" || mkdir -p "$ZMBKP_CONF"
+  [ ! -f "$ZMBKP_CONF/cmbkp.conf" ] && [ -f "$ZMBKP_CONF/cmbackup.conf" ] && ln -sf "$ZMBKP_CONF/cmbackup.conf" "$ZMBKP_CONF/cmbkp.conf"
+  [ ! -f "$ZMBKP_CONF/cmbackup.conf" ] && [ -f "$ZMBKP_CONF/cmbkp.conf" ] && ln -sf "$ZMBKP_CONF/cmbkp.conf" "$ZMBKP_CONF/cmbackup.conf"
+  [ "$ZMBKP_CONF" != "/etc/cmbackup" ] && [ ! -L "/etc/cmbackup" ] && ln -sfn "$ZMBKP_CONF" /etc/cmbackup
   echo "alias cmbackup='cmbkp'" > /etc/profile.d/cmbkp.sh
   chmod 644 /etc/profile.d/cmbkp.sh
   echo -ne '####################  (100%)\r'

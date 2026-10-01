@@ -97,13 +97,11 @@ cd /tmp/cmbkp
 
 To verify installation:
 
-```bash
-su - zextras -c "cmbkp -v"
-# Output: cmbkp version: 1.3.0 (alias: cmbackup)
+### Upgrading from cmbackup
 
-su - zextras -c "cmbackup -v"
-# Output: cmbkp version: 1.3.0 (alias: cmbackup)
-```
+Upgrading an existing `cmbackup` (or `zmbackup`) installation is automatic, non-destructive, and 100% backward-compatible. Existing configurations and backup archives are completely preserved.
+
+See the complete [**Upgrade Guide (docs/UPGRADE.md)**](docs/UPGRADE.md) for step-by-step upgrade instructions and verification steps.
 
 ---
 
