@@ -29,7 +29,7 @@ function check_fzf() {
 # tui_pause: Pause and wait for user keypress before returning to menu
 ################################################################################
 function tui_pause() {
-  local prompt_msg="${1:-Нажмите Enter для возврата в меню... / Press Enter to continue...}"
+  local prompt_msg="${1:-Press Enter to return to menu...}"
   echo ""
   printf "  %b●%b %b%s%b " "${CLR_BOLD_CYAN:-}" "${CLR_RESET:-}" "${CLR_BOLD_WHITE:-}" "$prompt_msg" "${CLR_RESET:-}"
   read -r _dummy
@@ -319,9 +319,9 @@ function tui_backup_flow() {
   local rc=$?
   echo ""
   if [ $rc -eq 0 ]; then
-    printf "  %b●%b %bРезервное копирование успешно завершено.%b\n" "${CLR_BOLD_GREEN:-}" "${CLR_RESET:-}" "${CLR_BOLD_GREEN:-}" "${CLR_RESET:-}"
+    printf "  %b●%b %bBackup operation completed successfully.%b\n" "${CLR_BOLD_GREEN:-}" "${CLR_RESET:-}" "${CLR_BOLD_GREEN:-}" "${CLR_RESET:-}"
   else
-    printf "  %b●%b %bРезервное копирование завершено с ошибкой (код %d).%b\n" "${CLR_BOLD_RED:-}" "${CLR_RESET:-}" "${CLR_BOLD_RED:-}" "$rc" "${CLR_RESET:-}"
+    printf "  %b●%b %bBackup operation completed with error (exit code %d).%b\n" "${CLR_BOLD_RED:-}" "${CLR_RESET:-}" "${CLR_BOLD_RED:-}" "$rc" "${CLR_RESET:-}"
   fi
   tui_pause
   return $rc
@@ -444,8 +444,8 @@ function tui_restore_flow() {
 
   echo ""
   printf "  %b●%b %bCommand to execute:%b %bcmbkp %s%b\n" "${CLR_BOLD_CYAN:-}" "${CLR_RESET:-}" "${CLR_BOLD_WHITE:-}" "${CLR_RESET:-}" "${CLR_YELLOW:-}" "${cmd_args[*]}" "${CLR_RESET:-}"
-  printf "  %b●%b %bВНИМАНИЕ:%b Данная операция изменит/перезапишет данные почтового ящика.\n" "${CLR_BOLD_RED:-}" "${CLR_RESET:-}" "${CLR_BOLD_RED:-}" "${CLR_RESET:-}"
-  printf "  %b●%b Вы уверены, что хотите продолжить? [y/N]: " "${CLR_BOLD_RED:-}" "${CLR_RESET:-}"
+  printf "  %b●%b %bWARNING:%b This operation will modify/overwrite mailbox data for the target account.\n" "${CLR_BOLD_RED:-}" "${CLR_RESET:-}" "${CLR_BOLD_RED:-}" "${CLR_RESET:-}"
+  printf "  %b●%b Are you sure you want to proceed? [y/N]: " "${CLR_BOLD_RED:-}" "${CLR_RESET:-}"
   read -r confirm_rst
   if [[ ! "$confirm_rst" =~ ^[Yy] ]]; then
     printf "\n  %b●%b %s\n" "${CLR_BOLD_YELLOW:-}" "${CLR_RESET:-}" "Restore cancelled."
@@ -458,9 +458,9 @@ function tui_restore_flow() {
   local rc=$?
   echo ""
   if [ $rc -eq 0 ]; then
-    printf "  %b●%b %bВосстановление успешно завершено.%b\n" "${CLR_BOLD_GREEN:-}" "${CLR_RESET:-}" "${CLR_BOLD_GREEN:-}" "${CLR_RESET:-}"
+    printf "  %b●%b %bRestore operation completed successfully.%b\n" "${CLR_BOLD_GREEN:-}" "${CLR_RESET:-}" "${CLR_BOLD_GREEN:-}" "${CLR_RESET:-}"
   else
-    printf "  %b●%b %bВосстановление завершено с ошибкой (код %d).%b\n" "${CLR_BOLD_RED:-}" "${CLR_RESET:-}" "${CLR_BOLD_RED:-}" "$rc" "${CLR_RESET:-}"
+    printf "  %b●%b %bRestore operation completed with error (exit code %d).%b\n" "${CLR_BOLD_RED:-}" "${CLR_RESET:-}" "${CLR_BOLD_RED:-}" "$rc" "${CLR_RESET:-}"
   fi
   tui_pause
   return $rc
