@@ -85,16 +85,57 @@ function sort_accounts_by_size()
 function build_listRST()
 {
   > "$TEMPACCOUNT"
-  if [[ $2 == *"@"* ]]; then
-    for i in ${2//,/ }; do
+  local session="$1"
+  local arg1="$2"
+  local arg2="$3"
+
+  local target_accounts=""
+  local target_domains=""
+
+  if [[ "$arg1" == "-a" || "$arg1" == "--account" ]]; then
+    target_accounts="$arg2"
+  elif [[ "$arg1" == "-d" || "$arg1" == "--domain" ]]; then
+    target_domains="$arg2"
+  elif [[ "$arg1" == *"@"* ]]; then
+    target_accounts="$arg1"
+  elif [ -n "$arg1" ]; then
+    # Passed as domain without -d flag (e.g. cmbkp -r session domain.com)
+    target_domains="$arg1"
+  fi
+
+  if [ -n "$target_accounts" ]; then
+    for i in ${target_accounts//,/ }; do
       echo "$i" >> "$TEMPACCOUNT"
     done
     sort -u "$TEMPACCOUNT" -o "$TEMPACCOUNT"
+    return 0
+  fi
+
+  # Fetch all accounts from session
+  local all_session_accs=()
+  if [[ $SESSION_TYPE == 'TXT' ]]; then
+    while IFS= read -r acc; do
+      [ -n "$acc" ] && all_session_accs+=("$acc")
+    done < <(grep "^${session}:" "$WORKDIR"/sessions.txt 2>/dev/null | cut -d: -f2 | sort -u)
   else
-    if [[ $SESSION_TYPE == 'TXT' ]]; then
-      grep "$1:" "$WORKDIR"/sessions.txt 2>/dev/null | grep -v "SESSION" | cut -d: -f2 | sort -u > "$TEMPACCOUNT"
-    elif [[ $SESSION_TYPE == "SQLITE3" ]]; then
-      sqlite3 "$WORKDIR"/sessions.sqlite3 "select email from backup_account where sessionID='$1'" 2>/dev/null | sort -u > "$TEMPACCOUNT"
-    fi
+    while IFS= read -r acc; do
+      [ -n "$acc" ] && all_session_accs+=("$acc")
+    done < <(cmbkp_sqlite "$WORKDIR"/sessions.sqlite3 "select email from backup_account where sessionID='$session';" 2>/dev/null | sort -u)
+  fi
+
+  if [ -n "$target_domains" ]; then
+    for dom in ${target_domains//,/ }; do
+      dom="${dom#@}" # strip leading @ if provided
+      for acc in "${all_session_accs[@]}"; do
+        if [[ "$acc" == *"@$dom" ]]; then
+          echo "$acc" >> "$TEMPACCOUNT"
+        fi
+      done
+    done
+    sort -u "$TEMPACCOUNT" -o "$TEMPACCOUNT"
+  else
+    for acc in "${all_session_accs[@]}"; do
+      echo "$acc" >> "$TEMPACCOUNT"
+    done
   fi
 }

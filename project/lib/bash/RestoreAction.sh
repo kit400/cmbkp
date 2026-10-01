@@ -37,7 +37,7 @@ function restore_main_mailbox()
         rm -rf "${TEMP_CLI_OUTPUT:?}"
       fi
     else
-      build_listRST "$1" "$2"
+      build_listRST "$1" "$2" "$3"
       parallel --jobs "$MAX_PARALLEL_PROCESS" "mailbox_restore '$1' '{}'" < "$TEMPACCOUNT"
     fi
     printf "\nRestore mail process with session %s completed at %s\n" "$1" "$(date)"
@@ -63,7 +63,7 @@ function restore_main_ldap()
   fi
   if [ -n "$SESSION" ]; then
     printf "Restore LDAP process with session %s started at %s\n" "$1" "$(date)"
-    build_listRST "$1" "$2"
+    build_listRST "$1" "$2" "$3"
     parallel --jobs "$MAX_PARALLEL_PROCESS" "ldap_restore '$1' '{}'" < "$TEMPACCOUNT"
     printf "\nRestore LDAP process with session %s completed at %s\n\n" "$1" "$(date)"
   else
