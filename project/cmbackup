@@ -84,6 +84,7 @@ source "$CMBKP_LIB_DIR/SessionAction.sh"
 ARGS=()
 export DRY_RUN="FALSE"
 export SINCE_DATE=""
+export SORT_BY="${SORT_BY:-}"
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --dry-run)
@@ -97,6 +98,22 @@ while [[ $# -gt 0 ]]; do
     --config)
       export CMBACKUP_CONF="$2"
       shift 2
+      ;;
+    -S|--sort-size|--sort-by-size)
+      export SORT_BY="size"
+      shift
+      ;;
+    --sort-size-asc)
+      export SORT_BY="size-asc"
+      shift
+      ;;
+    --sort)
+      export SORT_BY="$2"
+      shift 2
+      ;;
+    --sort=*)
+      export SORT_BY="${1#*=}"
+      shift
       ;;
     *)
       ARGS+=("$1")
@@ -176,7 +193,7 @@ case "$1" in
     rm -rf "$PID"
   ;;
   "-l"|"--list" )
-    list_sessions "$2"
+    list_sessions "$2" "$3"
   ;;
   "-r"|"--restore" )
     create_temp
@@ -248,7 +265,7 @@ case "$1" in
     fi
   ;;
   "-c"|"--verify" )
-    audit_mailboxes "$2"
+    audit_mailboxes "$2" "$3"
   ;;
   "-h"|"--help" )
     show_help

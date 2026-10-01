@@ -13,8 +13,34 @@ function list_sessions()
 {
   init_table_theme
 
-  if [ -n "$1" ]; then
-    list_session_detail "$1"
+  local target_session=""
+  for arg in "$@"; do
+    case "$arg" in
+      -S|--sort-size|--sort-by-size)
+        export SORT_BY="size"
+        ;;
+      --sort-size-asc)
+        export SORT_BY="size-asc"
+        ;;
+      --sort=*)
+        export SORT_BY="${arg#*=}"
+        ;;
+      size|size-desc)
+        export SORT_BY="size"
+        ;;
+      size-asc)
+        export SORT_BY="size-asc"
+        ;;
+      *)
+        if [ -z "$target_session" ] && [ -n "$arg" ] && [ "$arg" != "date" ]; then
+          target_session="$arg"
+        fi
+        ;;
+    esac
+  done
+
+  if [ -n "$target_session" ]; then
+    list_session_detail "$target_session"
     return $?
   fi
 
@@ -56,23 +82,30 @@ function list_sessions_txt ()
 
   local total_sessions=0
   local total_accounts=0
+  local session_records=()
 
   for i in $session_list; do
     local SIZE="N/A"
-    [ -d "$WORKDIR/$i" ] && SIZE=$(du -sh "$WORKDIR/$i" 2>/dev/null | awk '{print $1}')
+    local raw_bytes=0
+    if [ -d "$WORKDIR/$i" ]; then
+      SIZE=$(du -sh "$WORKDIR/$i" 2>/dev/null | awk '{print $1}')
+      raw_bytes=$(du -sb "$WORKDIR/$i" 2>/dev/null | awk '{print $1}')
+      [ -z "$raw_bytes" ] && raw_bytes=$(parse_size_bytes "$SIZE")
+    fi
     [ -z "$SIZE" ] && SIZE="0B"
+    [ -z "$raw_bytes" ] && raw_bytes=0
 
     local OPT
     OPT=$(echo "$i" | cut -d"-" -f1)
     case $OPT in
-      "full")       OPT="Full Backup" ;;
-      "inc")        OPT="Incremental Backup" ;;
-      "distlist")   OPT="Distribution List" ;;
-      "alias")      OPT="Alias Backup" ;;
-      "ldap")       OPT="Account (LDAP)" ;;
+      "full")        OPT="Full Backup" ;;
+      "inc")         OPT="Incremental Backup" ;;
+      "distlist")    OPT="Distribution List" ;;
+      "alias")       OPT="Alias Backup" ;;
+      "ldap")        OPT="Account (LDAP)" ;;
       "mbox"|"mail") OPT="Mailbox Backup" ;;
       "sig"|"signature") OPT="Signature Backup" ;;
-      *)            OPT="$OPT" ;;
+      *)             OPT="$OPT" ;;
     esac
 
     local DATE_RAW
@@ -95,17 +128,42 @@ function list_sessions_txt ()
       STATUS="RUNNING"
     fi
 
+    local row_entry
+    row_entry=$(printf "%016d|%s|%s|%s|%s|%s|%s" "$raw_bytes" "$i" "$OPT" "$ACC_COUNT" "$DATE_STR" "$SIZE" "$STATUS")
+    session_records+=("$row_entry")
+  done
+
+  # Sorting by size if requested
+  local display_records=()
+  if [[ "${SORT_BY:-}" == "size" || "${SORT_BY:-}" == "size-desc" ]]; then
+    while IFS= read -r line; do
+      [ -n "$line" ] && display_records+=("$line")
+    done < <(printf "%s\n" "${session_records[@]}" | sort -t'|' -k1,1r -k2,2)
+  elif [[ "${SORT_BY:-}" == "size-asc" ]]; then
+    while IFS= read -r line; do
+      [ -n "$line" ] && display_records+=("$line")
+    done < <(printf "%s\n" "${session_records[@]}" | sort -t'|' -k1,1 -k2,2)
+  else
+    display_records=("${session_records[@]}")
+  fi
+
+  for rec in "${display_records[@]}"; do
+    IFS='|' read -r _bytes SESS_NAME SESS_OPT SESS_ACCS SESS_DATE SESS_SIZE SESS_STATUS <<< "$rec"
     local STATUS_CLR
-    STATUS_CLR=$(get_status_color "$STATUS")
+    STATUS_CLR=$(get_status_color "$SESS_STATUS")
     local TYPE_CLR
-    TYPE_CLR=$(get_type_color "$OPT")
+    TYPE_CLR=$(get_type_color "$SESS_OPT")
 
     printf "${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_WHITE}%-23s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} %b%-18s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_CYAN}%8s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} %-10s ${CLR_GRAY}%s${CLR_RESET} ${CLR_GREEN}%10s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} %b%-8s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET}\n" \
-      "$BOX_V" "$i" "$BOX_V" "$TYPE_CLR" "$OPT" "$BOX_V" "$ACC_COUNT" "$BOX_V" "$DATE_STR" "$BOX_V" "$SIZE" "$BOX_V" "$STATUS_CLR" "$STATUS" "$BOX_V"
+      "$BOX_V" "$SESS_NAME" "$BOX_V" "$TYPE_CLR" "$SESS_OPT" "$BOX_V" "$SESS_ACCS" "$BOX_V" "$SESS_DATE" "$BOX_V" "$SESS_SIZE" "$BOX_V" "$STATUS_CLR" "$SESS_STATUS" "$BOX_V"
   done
 
   draw_table_border bot "${col_widths[@]}"
-  printf "  ${CLR_DIM}Total: %d session(s), %d account(s) backed up in %s${CLR_RESET}\n" "$total_sessions" "$total_accounts" "$WORKDIR"
+  if [[ "${SORT_BY:-}" == "size"* ]]; then
+    printf "  ${CLR_DIM}Total: %d session(s), %d account(s) backed up in %s (sorted by size)${CLR_RESET}\n" "$total_sessions" "$total_accounts" "$WORKDIR"
+  else
+    printf "  ${CLR_DIM}Total: %d session(s), %d account(s) backed up in %s${CLR_RESET}\n" "$total_sessions" "$total_accounts" "$WORKDIR"
+  fi
 }
 
 ################################################################################
@@ -137,6 +195,7 @@ function list_sessions_sqlite3 ()
 
   local total_sessions=0
   local total_accounts=0
+  local session_records=()
 
   while IFS='|' read -r NAME DATE TYPE SIZE STATUS; do
     [ -z "$NAME" ] && continue
@@ -146,15 +205,41 @@ function list_sessions_sqlite3 ()
     ACC_COUNT=$(sqlite3 "$WORKDIR/sessions.sqlite3" "SELECT count(*) FROM backup_account WHERE sessionID='$NAME';" 2>/dev/null || echo 0)
     total_accounts=$((total_accounts + ACC_COUNT))
 
+    local raw_bytes=0
     if [ -z "$SIZE" ] || [ "$SIZE" == "null" ]; then
       if [ -d "$WORKDIR/$NAME" ]; then
         SIZE=$(du -sh "$WORKDIR/$NAME" 2>/dev/null | awk '{print $1}')
+        raw_bytes=$(du -sb "$WORKDIR/$NAME" 2>/dev/null | awk '{print $1}')
       else
         SIZE="N/A"
       fi
+    else
+      raw_bytes=$(parse_size_bytes "$SIZE")
     fi
     [ -z "$STATUS" ] && STATUS="UNKNOWN"
+    [ -z "$raw_bytes" ] && raw_bytes=0
 
+    local row_entry
+    row_entry=$(printf "%016d|%s|%s|%s|%s|%s|%s" "$raw_bytes" "$NAME" "$TYPE" "$ACC_COUNT" "$DATE" "$SIZE" "$STATUS")
+    session_records+=("$row_entry")
+  done <<< "$rows"
+
+  # Sorting by size if requested
+  local display_records=()
+  if [[ "${SORT_BY:-}" == "size" || "${SORT_BY:-}" == "size-desc" ]]; then
+    while IFS= read -r line; do
+      [ -n "$line" ] && display_records+=("$line")
+    done < <(printf "%s\n" "${session_records[@]}" | sort -t'|' -k1,1r -k2,2)
+  elif [[ "${SORT_BY:-}" == "size-asc" ]]; then
+    while IFS= read -r line; do
+      [ -n "$line" ] && display_records+=("$line")
+    done < <(printf "%s\n" "${session_records[@]}" | sort -t'|' -k1,1 -k2,2)
+  else
+    display_records=("${session_records[@]}")
+  fi
+
+  for rec in "${display_records[@]}"; do
+    IFS='|' read -r _bytes NAME TYPE ACC_COUNT DATE SIZE STATUS <<< "$rec"
     local STATUS_CLR
     STATUS_CLR=$(get_status_color "$STATUS")
     local TYPE_CLR
@@ -162,10 +247,14 @@ function list_sessions_sqlite3 ()
 
     printf "${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_WHITE}%-23s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} %b%-18s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_CYAN}%8s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} %-10s ${CLR_GRAY}%s${CLR_RESET} ${CLR_GREEN}%10s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} %b%-8s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET}\n" \
       "$BOX_V" "$NAME" "$BOX_V" "$TYPE_CLR" "$TYPE" "$BOX_V" "$ACC_COUNT" "$BOX_V" "$DATE" "$BOX_V" "$SIZE" "$BOX_V" "$STATUS_CLR" "$STATUS" "$BOX_V"
-  done <<< "$rows"
+  done
 
   draw_table_border bot "${col_widths[@]}"
-  printf "  ${CLR_DIM}Total: %d session(s), %d account(s) recorded in database${CLR_RESET}\n" "$total_sessions" "$total_accounts"
+  if [[ "${SORT_BY:-}" == "size"* ]]; then
+    printf "  ${CLR_DIM}Total: %d session(s), %d account(s) recorded in database (sorted by size)${CLR_RESET}\n" "$total_sessions" "$total_accounts"
+  else
+    printf "  ${CLR_DIM}Total: %d session(s), %d account(s) recorded in database${CLR_RESET}\n" "$total_sessions" "$total_accounts"
+  fi
 }
 
 ################################################################################
@@ -174,6 +263,26 @@ function list_sessions_sqlite3 ()
 function list_session_detail()
 {
   local session="$1"
+  shift
+  for arg in "$@"; do
+    case "$arg" in
+      -S|--sort-size|--sort-by-size)
+        export SORT_BY="size"
+        ;;
+      --sort-size-asc)
+        export SORT_BY="size-asc"
+        ;;
+      --sort=*)
+        export SORT_BY="${arg#*=}"
+        ;;
+      size|size-desc)
+        export SORT_BY="size"
+        ;;
+      size-asc)
+        export SORT_BY="size-asc"
+        ;;
+    esac
+  done
   init_table_theme
 
   local session_exists=0
@@ -222,13 +331,12 @@ function list_session_detail()
     "$BOX_V" "#" "$BOX_V" "Account / Mailbox" "$BOX_V" "Date" "$BOX_V" "Size" "$BOX_V" "Status" "$BOX_V"
   draw_table_border mid "${widths[@]}"
 
-  local idx=0
+  local acc_records=()
   if [[ $SESSION_TYPE == 'TXT' ]]; then
     local acc_lines
     acc_lines=$(grep "^${session}:" "$WORKDIR/sessions.txt" 2>/dev/null)
     while IFS=':' read -r _s acc bdate; do
       [ -z "$acc" ] && continue
-      idx=$((idx + 1))
 
       # Normalize date to YYYY-MM-DD
       if [[ "$bdate" =~ ^([0-9]{2})/([0-9]{2})/([0-9]{2})$ ]]; then
@@ -245,38 +353,67 @@ function list_session_detail()
 
       local asize="N/A"
       local astatus="MISSING"
+      local raw_bytes=0
       if [ -d "$WORKDIR/$session" ]; then
         local found_files
         found_files=$(ls -1 "$WORKDIR/$session/$acc"* 2>/dev/null)
         if [ -n "$found_files" ]; then
           asize=$(du -ch "$WORKDIR/$session/$acc"* 2>/dev/null | grep total | awk '{print $1}')
+          raw_bytes=$(du -cb "$WORKDIR/$session/$acc"* 2>/dev/null | grep total | awk '{print $1}')
+          [ -z "$raw_bytes" ] && raw_bytes=$(parse_size_bytes "$asize")
           astatus="FINISHED"
         fi
       fi
-      local sclr
-      sclr=$(get_status_color "$astatus")
-      printf "${CLR_GRAY}%s${CLR_RESET} ${CLR_GRAY}%3d${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_WHITE}%-49s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} %-10s ${CLR_GRAY}%s${CLR_RESET} ${CLR_GREEN}%10s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} %b%-8s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET}\n" \
-        "$BOX_V" "$idx" "$BOX_V" "$acc" "$BOX_V" "$bdate" "$BOX_V" "$asize" "$BOX_V" "$sclr" "$astatus" "$BOX_V"
+      [ -z "$raw_bytes" ] && raw_bytes=0
+      acc_records+=("$(printf "%016d|%s|%s|%s|%s" "$raw_bytes" "$acc" "$bdate" "$asize" "$astatus")")
     done <<< "$acc_lines"
   elif [[ $SESSION_TYPE == 'SQLITE3' ]]; then
     local acc_data
     acc_data=$(sqlite3 "$WORKDIR/sessions.sqlite3" "SELECT email, account_size, date(conclusion_date) FROM backup_account WHERE sessionID='$session';" 2>/dev/null)
     while IFS='|' read -r acc asize bdate; do
       [ -z "$acc" ] && continue
-      idx=$((idx + 1))
       [ -z "$asize" ] && asize="N/A"
       [ -z "$bdate" ] && bdate="Unknown"
       local astatus="FINISHED"
       [ "$asize" == "N/A" ] && astatus="MISSING"
-      local sclr
-      sclr=$(get_status_color "$astatus")
-      printf "${CLR_GRAY}%s${CLR_RESET} ${CLR_GRAY}%3d${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_WHITE}%-49s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} %-10s ${CLR_GRAY}%s${CLR_RESET} ${CLR_GREEN}%10s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} %b%-8s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET}\n" \
-        "$BOX_V" "$idx" "$BOX_V" "$acc" "$BOX_V" "$bdate" "$BOX_V" "$asize" "$BOX_V" "$sclr" "$astatus" "$BOX_V"
+      local raw_bytes
+      raw_bytes=$(parse_size_bytes "$asize")
+      [ -z "$raw_bytes" ] && raw_bytes=0
+      acc_records+=("$(printf "%016d|%s|%s|%s|%s" "$raw_bytes" "$acc" "$bdate" "$asize" "$astatus")")
     done <<< "$acc_data"
   fi
+
+  # Sorting accounts by size if requested
+  local display_records=()
+  if [[ "${SORT_BY:-}" == "size" || "${SORT_BY:-}" == "size-desc" ]]; then
+    while IFS= read -r line; do
+      [ -n "$line" ] && display_records+=("$line")
+    done < <(printf "%s\n" "${acc_records[@]}" | sort -t'|' -k1,1r -k2,2)
+  elif [[ "${SORT_BY:-}" == "size-asc" ]]; then
+    while IFS= read -r line; do
+      [ -n "$line" ] && display_records+=("$line")
+    done < <(printf "%s\n" "${acc_records[@]}" | sort -t'|' -k1,1 -k2,2)
+  else
+    display_records=("${acc_records[@]}")
+  fi
+
+  local idx=0
+  for rec in "${display_records[@]}"; do
+    IFS='|' read -r _bytes acc bdate asize astatus <<< "$rec"
+    idx=$((idx + 1))
+    local sclr
+    sclr=$(get_status_color "$astatus")
+    printf "${CLR_GRAY}%s${CLR_RESET} ${CLR_GRAY}%3d${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_WHITE}%-49s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} %-10s ${CLR_GRAY}%s${CLR_RESET} ${CLR_GREEN}%10s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} %b%-8s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET}\n" \
+      "$BOX_V" "$idx" "$BOX_V" "$acc" "$BOX_V" "$bdate" "$BOX_V" "$asize" "$BOX_V" "$sclr" "$astatus" "$BOX_V"
+  done
 
   draw_table_border bot "${widths[@]}"
   local sess_size="N/A"
   [ -d "$WORKDIR/$session" ] && sess_size=$(du -sh "$WORKDIR/$session" 2>/dev/null | awk '{print $1}')
-  printf "  ${CLR_DIM}Total: %d account(s) in session %s | Total Size: %s${CLR_RESET}\n\n" "$idx" "$session" "$sess_size"
+  if [[ "${SORT_BY:-}" == "size"* ]]; then
+    printf "  ${CLR_DIM}Total: %d account(s) in session %s | Total Size: %s (sorted by size)${CLR_RESET}\n\n" "$idx" "$session" "$sess_size"
+  else
+    printf "  ${CLR_DIM}Total: %d account(s) in session %s | Total Size: %s${CLR_RESET}\n\n" "$idx" "$session" "$sess_size"
+  fi
 }
+

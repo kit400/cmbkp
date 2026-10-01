@@ -150,7 +150,31 @@ function mailbox_restore()
 ###############################################################################
 function audit_mailboxes()
 {
-  local target_account="$1"
+  local target_account=""
+  for arg in "$@"; do
+    case "$arg" in
+      -S|--sort-size|--sort-by-size)
+        export SORT_BY="size"
+        ;;
+      --sort-size-asc)
+        export SORT_BY="size-asc"
+        ;;
+      --sort=*)
+        export SORT_BY="${arg#*=}"
+        ;;
+      size|size-desc)
+        export SORT_BY="size"
+        ;;
+      size-asc)
+        export SORT_BY="size-asc"
+        ;;
+      *)
+        if [ -z "$target_account" ] && [ -n "$arg" ]; then
+          target_account="$arg"
+        fi
+        ;;
+    esac
+  done
   init_table_theme
 
   if [ -n "$target_account" ]; then
@@ -205,6 +229,33 @@ function audit_mailboxes()
     return 0
   fi
 
+  # Sort accounts by mailbox size if requested
+  if [[ "${SORT_BY:-}" == "size" || "${SORT_BY:-}" == "size-desc" ]]; then
+    local sorted_accs=()
+    while IFS= read -r acc; do
+      [ -n "$acc" ] && sorted_accs+=("$acc")
+    done < <(
+      for a in "${accounts[@]}"; do
+        local b; b=$(awk -v acc="$a" '$1 == acc {print $3}' "$gqu_cache")
+        [ -z "$b" ] && b=0
+        printf "%016d %s\n" "$b" "$a"
+      done | sort -rn | awk '{print $2}'
+    )
+    accounts=("${sorted_accs[@]}")
+  elif [[ "${SORT_BY:-}" == "size-asc" ]]; then
+    local sorted_accs=()
+    while IFS= read -r acc; do
+      [ -n "$acc" ] && sorted_accs+=("$acc")
+    done < <(
+      for a in "${accounts[@]}"; do
+        local b; b=$(awk -v acc="$a" '$1 == acc {print $3}' "$gqu_cache")
+        [ -z "$b" ] && b=0
+        printf "%016d %s\n" "$b" "$a"
+      done | sort -n | awk '{print $2}'
+    )
+    accounts=("${sorted_accs[@]}")
+  fi
+
   local widths=(5 51 12 12 10)
   draw_table_border top "${widths[@]}"
   printf "${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%3s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%-49s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%10s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%10s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%-8s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET}\n" \
@@ -241,7 +292,11 @@ function audit_mailboxes()
   rm -f "$gqu_cache"
   local total_hsize
   total_hsize=$(format_bytes "$total_bytes")
-  printf "  ${CLR_DIM}Audit Total: %d accounts | %d total messages | %s total storage${CLR_RESET}\n\n" "$idx" "$total_msgs" "$total_hsize"
+  if [[ "${SORT_BY:-}" == "size"* ]]; then
+    printf "  ${CLR_DIM}Audit Total: %d accounts | %d total messages | %s total storage (sorted by size)${CLR_RESET}\n\n" "$idx" "$total_msgs" "$total_hsize"
+  else
+    printf "  ${CLR_DIM}Audit Total: %d accounts | %d total messages | %s total storage${CLR_RESET}\n\n" "$idx" "$total_msgs" "$total_hsize"
+  fi
 }
 
 ###############################################################################

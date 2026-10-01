@@ -151,27 +151,33 @@ su - zextras -c "cmbackup -c"
 ### Listing & Inspecting Sessions (`-l`, `--list`)
 
 ```bash
-# List all backup sessions
+# List all backup sessions (default chronological order)
 su - zextras -c "cmbackup -l"
+
+# List backup sessions sorted by size (largest first)
+su - zextras -c "cmbackup -l -S"
 ```
 
-Output:
+Output (sorted by size):
 ```text
 ╭─────────────────────────┬────────────────────┬──────────┬────────────┬────────────┬──────────╮
 │ Session Name            │ Type               │ Accounts │ Date       │       Size │ Status   │
 ├─────────────────────────┼────────────────────┼──────────┼────────────┼────────────┼──────────┤
-│ distlist-20261001010001 │ Distribution List  │        1 │ 2026-10-01 │       8.0K │ FINISHED │
-│ full-20261001003001     │ Full Backup        │        2 │ 2026-10-01 │       8.4M │ FINISHED │
 │ inc-20261001013001      │ Incremental Backup │       29 │ 2026-10-01 │        26G │ FINISHED │
+│ full-20261001003001     │ Full Backup        │        2 │ 2026-10-01 │       8.4M │ FINISHED │
+│ distlist-20261001010001 │ Distribution List  │        1 │ 2026-10-01 │       8.0K │ FINISHED │
 ╰─────────────────────────┴────────────────────┴──────────┴────────────┴────────────┴──────────╯
-  Total: 3 session(s), 32 account(s) backed up in /opt/zextras/backup
+  Total: 3 session(s), 32 account(s) backed up in /opt/zextras/backup (sorted by size)
 ```
 
-Inspect accounts inside a specific session:
+Inspect accounts inside a specific session (with optional size sorting `-S`):
 
 ```bash
 # Inspect accounts in a session
 su - zextras -c "cmbackup -l full-20261001003001"
+
+# Inspect accounts in a session sorted by size
+su - zextras -c "cmbackup -l full-20261001003001 -S"
 ```
 
 Output:

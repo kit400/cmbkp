@@ -183,6 +183,46 @@ function format_bytes() {
   fi
 }
 
+# Parse human-readable size string (e.g. 8.4M, 26G, 8.0K, 512B) to integer byte count
+function parse_size_bytes() {
+  local s="${1:-0}"
+  if [ -z "$s" ] || [ "$s" == "null" ] || [ "$s" == "N/A" ] || [ "$s" == "Unknown" ]; then
+    echo 0
+    return
+  fi
+  s=$(echo "$s" | tr -d ' ' | tr '[:lower:]' '[:upper:]')
+  local num
+  case "$s" in
+    *T|*TB)
+      num="${s%T*}"
+      awk -v n="$num" 'BEGIN {printf "%.0f\n", n * 1099511627776}'
+      ;;
+    *G|*GB)
+      num="${s%G*}"
+      awk -v n="$num" 'BEGIN {printf "%.0f\n", n * 1073741824}'
+      ;;
+    *M|*MB)
+      num="${s%M*}"
+      awk -v n="$num" 'BEGIN {printf "%.0f\n", n * 1048576}'
+      ;;
+    *K|*KB)
+      num="${s%K*}"
+      awk -v n="$num" 'BEGIN {printf "%.0f\n", n * 1024}'
+      ;;
+    *B)
+      num="${s%B}"
+      awk -v n="$num" 'BEGIN {printf "%.0f\n", n}'
+      ;;
+    *)
+      if [[ "$s" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
+        awk -v n="$s" 'BEGIN {printf "%.0f\n", n}'
+      else
+        echo 0
+      fi
+      ;;
+  esac
+}
+
 # Display a styled empty-state or notification box
 function draw_empty_box() {
   local msg="$1"

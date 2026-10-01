@@ -327,6 +327,7 @@ function export_function(){
   export -f sort_accounts_by_size
   export -f verify_account_messages
   export -f audit_mailboxes
+  export -f parse_size_bytes
 }
 
 ################################################################################
@@ -345,4 +346,6 @@ function export_vars(){
   export MIN_FREE_DISK_GB
   export DRY_RUN
   export SINCE_DATE
+  export SORT_BY
 }
+
