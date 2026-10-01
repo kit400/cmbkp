@@ -2,6 +2,7 @@
 ################################################################################
 # CMBKP INTERACTIVE TUI (FZF-POWERED)
 # Fast interactive search for backup and restore operations
+# Clean styling: colors and large dots (●), no emojis
 ################################################################################
 LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=/dev/null
@@ -22,6 +23,16 @@ function check_fzf() {
     return 1
   fi
   return 0
+}
+
+################################################################################
+# tui_pause: Pause and wait for user keypress before returning to menu
+################################################################################
+function tui_pause() {
+  local prompt_msg="${1:-Нажмите Enter для возврата в меню... / Press Enter to continue...}"
+  echo ""
+  printf "  %b●%b %b%s%b " "${CLR_BOLD_CYAN:-}" "${CLR_RESET:-}" "${CLR_BOLD_WHITE:-}" "$prompt_msg" "${CLR_RESET:-}"
+  read -r _dummy
 }
 
 ################################################################################
@@ -98,7 +109,7 @@ function tui_preview_account() {
       found_count=$((found_count + 1))
       local tclr
       tclr=$(get_type_color "$sess")
-      printf "   %b•%b %-26s  Size: %-8s  Date: %s\n" "$tclr" "${CLR_RESET}" "$sess" "${asize:-N/A}" "${bdate:-Unknown}"
+      printf "   %b●%b %-26s  Size: %-8s  Date: %s\n" "$tclr" "${CLR_RESET}" "$sess" "${asize:-N/A}" "${bdate:-Unknown}"
     done <<< "$db_sessions"
   else
     if [ -f "$WORKDIR/sessions.txt" ]; then
@@ -114,7 +125,7 @@ function tui_preview_account() {
         fi
         local tclr
         tclr=$(get_type_color "$sess")
-        printf "   %b•%b %-26s  Size: %-8s  Date: %s\n" "$tclr" "${CLR_RESET}" "$sess" "$sz" "${bdate:-Unknown}"
+        printf "   %b●%b %-26s  Size: %-8s  Date: %s\n" "$tclr" "${CLR_RESET}" "$sess" "$sz" "${bdate:-Unknown}"
       done <<< "$txt_sessions"
     fi
   fi
@@ -129,7 +140,7 @@ function tui_preview_account() {
   while read -r sz fpath; do
     [ -z "$fpath" ] && continue
     file_count=$((file_count + 1))
-    printf "   %-8s %s\n" "$sz" "$(basename "$fpath")"
+    printf "   %b●%b %-8s %s\n" "${CLR_BOLD_GREEN:-}" "${CLR_RESET:-}" "$sz" "$(basename "$fpath")"
   done < <(ls -lh "$WORKDIR"/*/"$acc"* 2>/dev/null | tail -8 | awk '{print $5, $9}')
 
   if [ "$file_count" -eq 0 ]; then
@@ -178,7 +189,7 @@ function tui_preview_session() {
     while IFS='|' read -r email asize; do
       [ -z "$email" ] && continue
       acc_count=$((acc_count + 1))
-      printf "   • %-40s %8s\n" "$email" "${asize:-N/A}"
+      printf "   %b●%b %-40s %8s\n" "${CLR_BOLD_CYAN:-}" "${CLR_RESET:-}" "$email" "${asize:-N/A}"
     done <<< "$db_accs"
   else
     if [ -f "$WORKDIR/sessions.txt" ]; then
@@ -190,7 +201,7 @@ function tui_preview_session() {
           asz=$(du -ch "$WORKDIR/$sess/$email"* 2>/dev/null | grep total | awk '{print $1}')
           [ -z "$asz" ] && asz="N/A"
         fi
-        printf "   • %-40s %8s\n" "$email" "$asz"
+        printf "   %b●%b %-40s %8s\n" "${CLR_BOLD_CYAN:-}" "${CLR_RESET:-}" "$email" "$asz"
         [ "$acc_count" -ge 20 ] && { printf "   ... (and more)\n"; break; }
       done < <(grep "^$sess:" "$WORKDIR/sessions.txt" 2>/dev/null)
     fi
@@ -240,13 +251,14 @@ function tui_backup_flow() {
   init_table_theme
 
   echo ""
-  printf "  ${CLR_BOLD_CYAN}%s${CLR_RESET}\n" "Step 1: Select User Account(s) to Back Up"
-  printf "  ${CLR_DIM}%s${CLR_RESET}\n\n" "(Type to filter, Tab to select multiple, Enter to confirm)"
+  printf "  %b●%b %b%s%b\n" "${CLR_BOLD_CYAN:-}" "${CLR_RESET:-}" "${CLR_BOLD_CYAN:-}" "Step 1: Select User Account(s) to Back Up" "${CLR_RESET:-}"
+  printf "    %b%s%b\n\n" "${CLR_DIM:-}" "(Type to filter, Tab to select multiple, Enter to confirm)" "${CLR_RESET:-}"
 
   local selected_raw
-  selected_raw=$(tui_select_account "📦 Backup Account > " true)
+  selected_raw=$(tui_select_account "Backup Account > " true)
   if [ -z "$selected_raw" ]; then
-    echo "Backup cancelled (no account selected)."
+    printf "\n  %b●%b %s\n" "${CLR_BOLD_YELLOW:-}" "${CLR_RESET:-}" "Backup cancelled (no account selected)."
+    sleep 1.2
     return 0
   fi
 
@@ -260,17 +272,18 @@ function tui_backup_flow() {
   acc_list=$(IFS=','; echo "${selected_accounts[*]}")
 
   echo ""
-  printf "  ${CLR_BOLD_GREEN}Selected (%d account(s)):${CLR_RESET} %s\n\n" "$acc_count" "$acc_list"
+  printf "  %b●%b %bSelected (%d account(s)):%b %s\n\n" "${CLR_BOLD_GREEN:-}" "${CLR_RESET:-}" "${CLR_BOLD_WHITE:-}" "$acc_count" "${CLR_RESET:-}" "$acc_list"
 
-  printf "  ${CLR_BOLD_CYAN}%s${CLR_RESET}\n" "Step 2: Choose Backup Mode"
-  echo "    [1] 📦 Full Backup           (LDAP directory + all mailbox data)"
-  echo "    [2] ⚡ Incremental Backup    (Changes since last backup)"
-  echo "    [3] ✉️  Mailbox Only          (Skip LDAP metadata)"
-  echo "    [4] 👤 LDAP Directory Only   (Accounts, aliases, distribution lists)"
-  echo "    [5] 🧪 Dry-Run Test          (Simulate backup without writing data)"
-  echo "    [0] ❌ Cancel"
+  printf "  %b●%b %b%s%b\n\n" "${CLR_BOLD_CYAN:-}" "${CLR_RESET:-}" "${CLR_BOLD_CYAN:-}" "Step 2: Choose Backup Mode" "${CLR_RESET:-}"
+  printf "    %b[1]%b  %b●%b  %-22s %b%s%b\n" "${CLR_BOLD_CYAN:-}" "${CLR_RESET:-}" "${CLR_BOLD_BLUE:-}" "${CLR_RESET:-}" "Full Backup" "${CLR_DIM:-}" "(LDAP directory + all mailbox data)" "${CLR_RESET:-}"
+  printf "    %b[2]%b  %b●%b  %-22s %b%s%b\n" "${CLR_BOLD_CYAN:-}" "${CLR_RESET:-}" "${CLR_BOLD_CYAN:-}" "${CLR_RESET:-}" "Incremental Backup" "${CLR_DIM:-}" "(Changes since last backup)" "${CLR_RESET:-}"
+  printf "    %b[3]%b  %b●%b  %-22s %b%s%b\n" "${CLR_BOLD_CYAN:-}" "${CLR_RESET:-}" "${CLR_BOLD_GREEN:-}" "${CLR_RESET:-}" "Mailbox Only" "${CLR_DIM:-}" "(Skip LDAP metadata)" "${CLR_RESET:-}"
+  printf "    %b[4]%b  %b●%b  %-22s %b%s%b\n" "${CLR_BOLD_CYAN:-}" "${CLR_RESET:-}" "${CLR_BOLD_YELLOW:-}" "${CLR_RESET:-}" "LDAP Directory Only" "${CLR_DIM:-}" "(Accounts, aliases, distribution lists)" "${CLR_RESET:-}"
+  printf "    %b[5]%b  %b●%b  %-22s %b%s%b\n" "${CLR_BOLD_CYAN:-}" "${CLR_RESET:-}" "${CLR_BOLD_MAGENTA:-}" "${CLR_RESET:-}" "Dry-Run Test" "${CLR_DIM:-}" "(Simulate backup without writing data)" "${CLR_RESET:-}"
+  printf "    %b[0]%b  %b●%b  %-22s\n" "${CLR_BOLD_RED:-}" "${CLR_RESET:-}" "${CLR_GRAY:-}" "${CLR_RESET:-}" "Cancel"
   echo ""
-  read -r -p "  Enter choice [1-5, or 0 to cancel]: " bkp_choice
+  printf "  %b●%b Enter choice [1-5, or 0 to cancel]: " "${CLR_BOLD_CYAN:-}" "${CLR_RESET:-}"
+  read -r bkp_choice
 
   local cmd_args=()
   case "$bkp_choice" in
@@ -279,20 +292,39 @@ function tui_backup_flow() {
     3) cmd_args=("-f" "-m" "-a" "$acc_list") ;;
     4) cmd_args=("-f" "-ldp" "-a" "$acc_list") ;;
     5) cmd_args=("-f" "-a" "$acc_list" "--dry-run") ;;
-    0|"") echo "Cancelled."; return 0 ;;
-    *) echo "Invalid choice. Aborting."; return 1 ;;
+    0|"")
+      printf "\n  %b●%b Cancelled.\n" "${CLR_BOLD_YELLOW:-}" "${CLR_RESET:-}"
+      sleep 1.2
+      return 0
+      ;;
+    *)
+      printf "\n  %b●%b Invalid choice. Aborting.\n" "${CLR_BOLD_RED:-}" "${CLR_RESET:-}"
+      sleep 1.5
+      return 1
+      ;;
   esac
 
   echo ""
-  printf "  ${CLR_BOLD_WHITE}Command to execute:${CLR_RESET} ${CLR_CYAN}cmbkp %s${CLR_RESET}\n" "${cmd_args[*]}"
-  read -r -p "  Proceed with backup? [Y/n]: " confirm
+  printf "  %b●%b %bCommand to execute:%b %bcmbkp %s%b\n" "${CLR_BOLD_CYAN:-}" "${CLR_RESET:-}" "${CLR_BOLD_WHITE:-}" "${CLR_RESET:-}" "${CLR_CYAN:-}" "${cmd_args[*]}" "${CLR_RESET:-}"
+  printf "  %b●%b Proceed with backup? [Y/n]: " "${CLR_BOLD_YELLOW:-}" "${CLR_RESET:-}"
+  read -r confirm
   if [[ "$confirm" =~ ^[Nn] ]]; then
-    echo "Aborted by user."
+    printf "\n  %b●%b %s\n" "${CLR_BOLD_YELLOW:-}" "${CLR_RESET:-}" "Aborted by user."
+    sleep 1.2
     return 0
   fi
 
   echo ""
   cmbkp "${cmd_args[@]}"
+  local rc=$?
+  echo ""
+  if [ $rc -eq 0 ]; then
+    printf "  %b●%b %bРезервное копирование успешно завершено.%b\n" "${CLR_BOLD_GREEN:-}" "${CLR_RESET:-}" "${CLR_BOLD_GREEN:-}" "${CLR_RESET:-}"
+  else
+    printf "  %b●%b %bРезервное копирование завершено с ошибкой (код %d).%b\n" "${CLR_BOLD_RED:-}" "${CLR_RESET:-}" "${CLR_BOLD_RED:-}" "$rc" "${CLR_RESET:-}"
+  fi
+  tui_pause
+  return $rc
 }
 
 ################################################################################
@@ -303,18 +335,19 @@ function tui_restore_flow() {
   init_table_theme
 
   echo ""
-  printf "  ${CLR_BOLD_CYAN}%s${CLR_RESET}\n" "Step 1: Select User Account to Restore"
-  printf "  ${CLR_DIM}%s${CLR_RESET}\n\n" "(Type to filter, Enter to select account)"
+  printf "  %b●%b %b%s%b\n" "${CLR_BOLD_CYAN:-}" "${CLR_RESET:-}" "${CLR_BOLD_CYAN:-}" "Step 1: Select User Account to Restore" "${CLR_RESET:-}"
+  printf "    %b%s%b\n\n" "${CLR_DIM:-}" "(Type to filter, Enter to select account)" "${CLR_RESET:-}"
 
   local selected_account
-  selected_account=$(tui_select_account "🔄 Restore Account > " false)
+  selected_account=$(tui_select_account "Restore Account > " false)
   if [ -z "$selected_account" ]; then
-    echo "Restore cancelled (no account selected)."
+    printf "\n  %b●%b %s\n" "${CLR_BOLD_YELLOW:-}" "${CLR_RESET:-}" "Restore cancelled (no account selected)."
+    sleep 1.2
     return 0
   fi
 
   echo ""
-  printf "  ${CLR_BOLD_GREEN}Target Account:${CLR_RESET} %s\n\n" "$selected_account"
+  printf "  %b●%b %bTarget Account:%b %s\n\n" "${CLR_BOLD_GREEN:-}" "${CLR_RESET:-}" "${CLR_BOLD_WHITE:-}" "${CLR_RESET:-}" "$selected_account"
 
   # Find available sessions for this account
   local session_candidates=()
@@ -336,10 +369,11 @@ function tui_restore_flow() {
 
   if [ "${#session_candidates[@]}" -eq 0 ]; then
     draw_empty_box "No backup sessions found for $selected_account in $WORKDIR" 96
+    tui_pause
     return 1
   fi
 
-  printf "  ${CLR_BOLD_CYAN}%s${CLR_RESET}\n" "Step 2: Select Backup Session to Restore From"
+  printf "  %b●%b %b%s%b\n" "${CLR_BOLD_CYAN:-}" "${CLR_RESET:-}" "${CLR_BOLD_CYAN:-}" "Step 2: Select Backup Session to Restore From" "${CLR_RESET:-}"
   local fzf_sess_flags=(
     "--prompt=Select Backup Session > "
     "--height=70%"
@@ -354,7 +388,8 @@ function tui_restore_flow() {
   local chosen_sess_line
   chosen_sess_line=$(printf "%s\n" "${session_candidates[@]}" | fzf "${fzf_sess_flags[@]}")
   if [ -z "$chosen_sess_line" ]; then
-    echo "Restore cancelled (no session selected)."
+    printf "\n  %b●%b %s\n" "${CLR_BOLD_YELLOW:-}" "${CLR_RESET:-}" "Restore cancelled (no session selected)."
+    sleep 1.2
     return 0
   fi
 
@@ -362,14 +397,15 @@ function tui_restore_flow() {
   target_session=$(echo "$chosen_sess_line" | awk '{print $1}')
 
   echo ""
-  printf "  ${CLR_BOLD_CYAN}%s${CLR_RESET}\n" "Step 3: Choose Restore Destination & Type"
-  echo "    [1] 📥 Restore to original account ($selected_account)"
-  echo "    [2] 🔀 Restore to a DIFFERENT account (-ro origin destination)"
-  echo "    [3] 👤 Restore LDAP directory metadata only"
-  echo "    [4] ✉️  Restore Mailbox data only"
-  echo "    [0] ❌ Cancel"
+  printf "  %b●%b %b%s%b\n\n" "${CLR_BOLD_CYAN:-}" "${CLR_RESET:-}" "${CLR_BOLD_CYAN:-}" "Step 3: Choose Restore Destination & Type" "${CLR_RESET:-}"
+  printf "    %b[1]%b  %b●%b  %-28s %b%s%b\n" "${CLR_BOLD_CYAN:-}" "${CLR_RESET:-}" "${CLR_BOLD_BLUE:-}" "${CLR_RESET:-}" "Restore to original account" "${CLR_DIM:-}" "($selected_account)" "${CLR_RESET:-}"
+  printf "    %b[2]%b  %b●%b  %-28s %b%s%b\n" "${CLR_BOLD_CYAN:-}" "${CLR_RESET:-}" "${CLR_BOLD_YELLOW:-}" "${CLR_RESET:-}" "Restore to another account" "${CLR_DIM:-}" "(-ro origin destination)" "${CLR_RESET:-}"
+  printf "    %b[3]%b  %b●%b  %-28s %b%s%b\n" "${CLR_BOLD_CYAN:-}" "${CLR_RESET:-}" "${CLR_BOLD_PURPLE:-}" "${CLR_RESET:-}" "Restore LDAP metadata only" "${CLR_DIM:-}" "(Accounts, aliases, distribution lists)" "${CLR_RESET:-}"
+  printf "    %b[4]%b  %b●%b  %-28s %b%s%b\n" "${CLR_BOLD_CYAN:-}" "${CLR_RESET:-}" "${CLR_BOLD_GREEN:-}" "${CLR_RESET:-}" "Restore Mailbox data only" "${CLR_DIM:-}" "(Skip LDAP attributes)" "${CLR_RESET:-}"
+  printf "    %b[0]%b  %b●%b  %-28s\n" "${CLR_BOLD_RED:-}" "${CLR_RESET:-}" "${CLR_GRAY:-}" "${CLR_RESET:-}" "Cancel"
   echo ""
-  read -r -p "  Enter choice [1-4, or 0 to cancel]: " rst_choice
+  printf "  %b●%b Enter choice [1-4, or 0 to cancel]: " "${CLR_BOLD_CYAN:-}" "${CLR_RESET:-}"
+  read -r rst_choice
 
   local cmd_args=()
   case "$rst_choice" in
@@ -378,11 +414,12 @@ function tui_restore_flow() {
       ;;
     2)
       echo ""
-      echo "  Select destination account to receive restored data:"
+      printf "  %b●%b Select destination account to receive restored data:\n" "${CLR_BOLD_CYAN:-}" "${CLR_RESET:-}"
       local dest_account
       dest_account=$(tui_select_account "Destination Account > " false)
       if [ -z "$dest_account" ]; then
-        echo "Cancelled (no destination account selected)."
+        printf "\n  %b●%b %s\n" "${CLR_BOLD_YELLOW:-}" "${CLR_RESET:-}" "Cancelled (no destination account selected)."
+        sleep 1.2
         return 0
       fi
       cmd_args=("-r" "-ro" "$target_session" "$selected_account" "$dest_account")
@@ -394,26 +431,39 @@ function tui_restore_flow() {
       cmd_args=("-r" "-m" "$target_session" "$selected_account")
       ;;
     0|"")
-      echo "Cancelled."
+      printf "\n  %b●%b Cancelled.\n" "${CLR_BOLD_YELLOW:-}" "${CLR_RESET:-}"
+      sleep 1.2
       return 0
       ;;
     *)
-      echo "Invalid choice. Aborting."
+      printf "\n  %b●%b Invalid choice. Aborting.\n" "${CLR_BOLD_RED:-}" "${CLR_RESET:-}"
+      sleep 1.5
       return 1
       ;;
   esac
 
   echo ""
-  printf "  ${CLR_BOLD_WHITE}Command to execute:${CLR_RESET} ${CLR_YELLOW}cmbkp %s${CLR_RESET}\n" "${cmd_args[*]}"
-  printf "  ${CLR_BOLD_RED}WARNING:${CLR_RESET} This will modify/overwrite mailbox data for the target account.\n"
-  read -r -p "  Are you sure you want to proceed? [y/N]: " confirm_rst
+  printf "  %b●%b %bCommand to execute:%b %bcmbkp %s%b\n" "${CLR_BOLD_CYAN:-}" "${CLR_RESET:-}" "${CLR_BOLD_WHITE:-}" "${CLR_RESET:-}" "${CLR_YELLOW:-}" "${cmd_args[*]}" "${CLR_RESET:-}"
+  printf "  %b●%b %bВНИМАНИЕ:%b Данная операция изменит/перезапишет данные почтового ящика.\n" "${CLR_BOLD_RED:-}" "${CLR_RESET:-}" "${CLR_BOLD_RED:-}" "${CLR_RESET:-}"
+  printf "  %b●%b Вы уверены, что хотите продолжить? [y/N]: " "${CLR_BOLD_RED:-}" "${CLR_RESET:-}"
+  read -r confirm_rst
   if [[ ! "$confirm_rst" =~ ^[Yy] ]]; then
-    echo "Restore cancelled."
+    printf "\n  %b●%b %s\n" "${CLR_BOLD_YELLOW:-}" "${CLR_RESET:-}" "Restore cancelled."
+    sleep 1.2
     return 0
   fi
 
   echo ""
   cmbkp "${cmd_args[@]}"
+  local rc=$?
+  echo ""
+  if [ $rc -eq 0 ]; then
+    printf "  %b●%b %bВосстановление успешно завершено.%b\n" "${CLR_BOLD_GREEN:-}" "${CLR_RESET:-}" "${CLR_BOLD_GREEN:-}" "${CLR_RESET:-}"
+  else
+    printf "  %b●%b %bВосстановление завершено с ошибкой (код %d).%b\n" "${CLR_BOLD_RED:-}" "${CLR_RESET:-}" "${CLR_BOLD_RED:-}" "$rc" "${CLR_RESET:-}"
+  fi
+  tui_pause
+  return $rc
 }
 
 ################################################################################
@@ -436,6 +486,7 @@ function tui_session_browser() {
 
   if [ "${#sessions[@]}" -eq 0 ]; then
     draw_empty_box "No backup sessions recorded in $WORKDIR" 96
+    tui_pause
     return 0
   fi
 
@@ -452,8 +503,7 @@ function tui_session_browser() {
 
   if [ -n "$chosen_session" ]; then
     cmbkp -l "$chosen_session"
-    echo ""
-    read -r -p "Press Enter to return..." _dummy
+    tui_pause
   fi
 }
 
@@ -476,15 +526,16 @@ function tui_main_menu() {
     draw_table_border bot "${widths[@]}"
     echo ""
 
-    echo "  Choose an action:"
-    echo "    [1] 📦 Backup Account(s)        - Fuzzy search user & run full/inc backup"
-    echo "    [2] 🔄 Restore Account          - Fuzzy search user, choose backup session & restore"
-    echo "    [3] 📋 Browse Sessions          - Interactive session explorer with account preview"
-    echo "    [4] 📊 Mailbox Storage Audit    - Audit live message counts & storage usage"
-    echo "    [5] 📑 List Sessions Table      - Display formatted 96-col box table (cmbkp -l -S)"
-    echo "    [0] 🚪 Exit TUI"
+    printf "  %bChoose an action:%b\n\n" "${CLR_BOLD_WHITE:-}" "${CLR_RESET:-}"
+    printf "    %b[1]%b  %b●%b  %-24s %b%s%b\n" "${CLR_BOLD_CYAN:-}" "${CLR_RESET:-}" "${CLR_BOLD_BLUE:-}" "${CLR_RESET:-}" "Backup Account(s)" "${CLR_DIM:-}" "- Fuzzy search user & run full/inc backup" "${CLR_RESET:-}"
+    printf "    %b[2]%b  %b●%b  %-24s %b%s%b\n" "${CLR_BOLD_CYAN:-}" "${CLR_RESET:-}" "${CLR_BOLD_GREEN:-}" "${CLR_RESET:-}" "Restore Account" "${CLR_DIM:-}" "- Fuzzy search user, choose backup session & restore" "${CLR_RESET:-}"
+    printf "    %b[3]%b  %b●%b  %-24s %b%s%b\n" "${CLR_BOLD_CYAN:-}" "${CLR_RESET:-}" "${CLR_BOLD_YELLOW:-}" "${CLR_RESET:-}" "Browse Sessions" "${CLR_DIM:-}" "- Interactive session explorer with account preview" "${CLR_RESET:-}"
+    printf "    %b[4]%b  %b●%b  %-24s %b%s%b\n" "${CLR_BOLD_CYAN:-}" "${CLR_RESET:-}" "${CLR_BOLD_PURPLE:-}" "${CLR_RESET:-}" "Mailbox Storage Audit" "${CLR_DIM:-}" "- Audit live message counts & storage usage" "${CLR_RESET:-}"
+    printf "    %b[5]%b  %b●%b  %-24s %b%s%b\n" "${CLR_BOLD_CYAN:-}" "${CLR_RESET:-}" "${CLR_BOLD_CYAN:-}" "${CLR_RESET:-}" "List Sessions Table" "${CLR_DIM:-}" "- Display formatted 96-col box table (cmbkp -l -S)" "${CLR_RESET:-}"
+    printf "    %b[0]%b  %b●%b  %-24s %b%s%b\n" "${CLR_BOLD_RED:-}" "${CLR_RESET:-}" "${CLR_GRAY:-}" "${CLR_RESET:-}" "Exit TUI" "${CLR_DIM:-}" "- Return to shell" "${CLR_RESET:-}"
     echo ""
-    read -r -p "  Select option [0-5]: " menu_choice
+    printf "  %b●%b Select option [0-5]: " "${CLR_BOLD_CYAN:-}" "${CLR_RESET:-}"
+    read -r menu_choice
 
     case "$menu_choice" in
       1) tui_backup_flow ;;
@@ -492,16 +543,15 @@ function tui_main_menu() {
       3) tui_session_browser ;;
       4)
         cmbkp -c -S
-        echo ""
-        read -r -p "Press Enter to return..." _dummy
+        tui_pause
         ;;
       5)
         cmbkp -l -S
-        echo ""
-        read -r -p "Press Enter to return..." _dummy
+        tui_pause
         ;;
       0|q|Q|"")
-        echo "Exiting TUI. Goodbye!"
+        echo ""
+        printf "  %b●%b Exiting TUI. Goodbye!\n" "${CLR_BOLD_CYAN:-}" "${CLR_RESET:-}"
         break
         ;;
       *)
