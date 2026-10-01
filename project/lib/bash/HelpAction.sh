@@ -2,58 +2,65 @@
 ################################################################################
 # Command Help Option
 ################################################################################
+LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=/dev/null
+[ -f "$LIB_DIR/TableHelper.sh" ] && source "$LIB_DIR/TableHelper.sh"
 
 ################################################################################
-# show_help: It will show a quick help about each command from cmbackup
+# show_help: Show a clean help summary about each command from cmbackup
 ################################################################################
 function show_help (){
-  printf "usage: cmbackup -f [-m,-dl,-al,-ldp] [-d,-a] <mail/domain>"
-  printf "\n       cmbackup -i <mail>"
-  printf "\n       cmbackup -r [-m,-dl,-al,-ldp] [-d,-a] <session> <mail>"
-  printf "\n       cmbackup -r [-ro] <session> <mail_origin> <mail_destination>"
-  printf "\n       cmbackup -d <session>"
-  printf "\n       cmbackup -m"
+  type init_table_theme &>/dev/null && init_table_theme
 
-  # All the basic options.
-  printf "\n\nOptions:\n"
+  local BOLD="${CLR_BOLD:-}"
+  local CYAN="${CLR_BOLD_CYAN:-}"
+  local GREEN="${CLR_GREEN:-}"
+  local YELLOW="${CLR_BOLD_YELLOW:-}"
+  local RESET="${CLR_RESET:-}"
 
-  printf "\n -f,   --full                     : Execute full backup of an account, a list of accounts, or all accounts."
-  printf "\n -i,   --incremental              : Execute incremental backup for an account, a list of accounts, or all accounts."
-  printf "\n       --since <YYYY-MM-DD>       : Specify explicit date for incremental backup."
-  printf "\n       --dry-run                  : Test run without downloading or writing data."
-  printf "\n -c,   --verify [account]         : Audit and verify mailbox message count."
-  printf "\n -l,   --list                     : List all backup sessions that still exist in your disk."
-  printf "\n -r,   --restore                  : Restore the backup inside the users account."
-  printf "\n -d,   --delete                   : Delete a session of backup."
-  printf "\n -hp,  --housekeep                : Execute the Housekeep to remove old sessions - Zmbhousekeep"
-  printf "\n -t,   --truncate                 : Delete all the backups and empty the database"
-  printf "\n -m,   --migrate                  : Migrate the database from TXT to SQLITE3 and vice versa."
-  printf "\n -v,   --version                  : Show the cmbackup version."
-  printf "\n -h,   --help                     : Show this help"
+  printf "%bUsage:%b\n" "$BOLD" "$RESET"
+  printf "  cmbackup %b-f%b [%b-m%b,%b-dl%b,%b-al%b,%b-ldp%b,%b-sig%b] [%b-d%b,%b-a%b] <mail/domain>\n" "$GREEN" "$RESET" "$GREEN" "$RESET" "$GREEN" "$RESET" "$GREEN" "$RESET" "$GREEN" "$RESET" "$GREEN" "$RESET" "$GREEN" "$RESET" "$GREEN" "$RESET"
+  printf "  cmbackup %b-i%b <mail>\n" "$GREEN" "$RESET"
+  printf "  cmbackup %b-r%b [%b-m%b,%b-dl%b,%b-al%b,%b-ldp%b,%b-sig%b] [%b-d%b,%b-a%b] <session> <mail>\n" "$GREEN" "$RESET" "$GREEN" "$RESET" "$GREEN" "$RESET" "$GREEN" "$RESET" "$GREEN" "$RESET" "$GREEN" "$RESET" "$GREEN" "$RESET" "$GREEN" "$RESET"
+  printf "  cmbackup %b-r%b %b-ro%b <session> <mail_origin> <mail_destination>\n" "$GREEN" "$RESET" "$GREEN" "$RESET"
+  printf "  cmbackup %b-l%b [session]\n" "$GREEN" "$RESET"
+  printf "  cmbackup %b-c%b [mail]\n" "$GREEN" "$RESET"
+  printf "  cmbackup %b-d%b <session>\n" "$GREEN" "$RESET"
+  printf "  cmbackup %b-hp%b\n" "$GREEN" "$RESET"
+  printf "  cmbackup %b-m%b\n" "$GREEN" "$RESET"
 
-  # All the options related to Full Backups
-  printf "\n\nFull Backup Options:\n"
+  printf "\n%bGeneral Options:%b\n" "$CYAN" "$RESET"
+  printf "  %b-f,   --full%b                     Execute full backup of an account, list of accounts, or all accounts.\n" "$GREEN" "$RESET"
+  printf "  %b-i,   --incremental%b              Execute incremental backup for an account, list of accounts, or all.\n" "$GREEN" "$RESET"
+  printf "        %b--since <YYYY-MM-DD>%b       Specify explicit date for incremental backup.\n" "$YELLOW" "$RESET"
+  printf "        %b--dry-run%b                  Test run without downloading or writing data.\n" "$YELLOW" "$RESET"
+  printf "  %b-c,   --verify [account]%b         Audit and verify mailbox message count and storage.\n" "$GREEN" "$RESET"
+  printf "  %b-l,   --list [session]%b           List backup sessions, or inspect accounts in a specific session.\n" "$GREEN" "$RESET"
+  printf "  %b-r,   --restore%b                  Restore backup data into user accounts.\n" "$GREEN" "$RESET"
+  printf "  %b-d,   --delete <session>%b         Delete a specific backup session.\n" "$GREEN" "$RESET"
+  printf "  %b-hp,  --housekeep%b                Clean old backups based on retention policy (ROTATE_TIME).\n" "$GREEN" "$RESET"
+  printf "  %b-t,   --truncate%b                 Delete all backups and empty database (irreversible).\n" "$GREEN" "$RESET"
+  printf "  %b-m,   --migrate%b                  Migrate session catalog between TXT and SQLITE3.\n" "$GREEN" "$RESET"
+  printf "  %b-v,   --version%b                  Show cmbackup version.\n" "$GREEN" "$RESET"
+  printf "  %b-h,   --help%b                     Show this help message.\n" "$GREEN" "$RESET"
 
-  printf "\n -m,   --mail                     : Execute a backup of an account, but only the mailbox."
-  printf "\n -dl,  --distributionlist         : Execute a backup of a distributionlist instead of an account."
-  printf "\n -al,  --alias                    : Execute a backup of an alias instead of an account."
-  printf "\n -ldp, --ldap                     : Execute a backup of an account, but only the ldap entry."
-  printf "\n -sig, --signature                : Execute a backup of a signature."
-  printf "\n -d,   --domain                   : Execute a backup of only a set of domains, comma separated"
-  printf "\n -a,   --account                  : Execute a backup of only a set of accounts, comma separated"
+  printf "\n%bFull Backup Filters:%b\n" "$CYAN" "$RESET"
+  printf "  %b-m,   --mail%b                     Backup only the mailbox data.\n" "$GREEN" "$RESET"
+  printf "  %b-dl,  --distributionlist%b         Backup distribution lists instead of user accounts.\n" "$GREEN" "$RESET"
+  printf "  %b-al,  --alias%b                    Backup aliases instead of user accounts.\n" "$GREEN" "$RESET"
+  printf "  %b-ldp, --ldap%b                     Backup only LDAP directory entries.\n" "$GREEN" "$RESET"
+  printf "  %b-sig, --signature%b                Backup user signatures.\n" "$GREEN" "$RESET"
+  printf "  %b-d,   --domain <domains>%b          Comma-separated list of domains to back up.\n" "$GREEN" "$RESET"
+  printf "  %b-a,   --account <accounts>%b        Comma-separated list of accounts to back up.\n" "$GREEN" "$RESET"
 
-
-  # All the options related to Restore Backups
-  printf "\n\nRestore Backup Options:\n"
-
-  printf "\n -m,   --mail                     : Execute a restore of an account,  but only the mailbox."
-  printf "\n -dl,  --distributionlist         : Execute a restore of a distributionlist instead of an account."
-  printf "\n -al,  --alias                    : Execute a restore of an alias instead of an account."
-  printf "\n -ldp, --ldap                     : Execute a restore of an account, but only the ldap entry."
-  printf "\n -ro,  --restoreOnAccount         : Execute a restore of an account inside another account."
-  printf "\n -sig, --signature                : Execute a restore of a signature."
-  printf "\n -d,   --domain                   : Execute a backup of only a set of domains, comma separated"
-  printf "\n -a,   --account                  : Execute a backup of only a set of accounts, comma separated"
-
-  printf "\n\n\n"
+  printf "\n%bRestore Options:%b\n" "$CYAN" "$RESET"
+  printf "  %b-m,   --mail%b                     Restore only the mailbox data.\n" "$GREEN" "$RESET"
+  printf "  %b-dl,  --distributionlist%b         Restore distribution lists.\n" "$GREEN" "$RESET"
+  printf "  %b-al,  --alias%b                    Restore aliases.\n" "$GREEN" "$RESET"
+  printf "  %b-ldp, --ldap%b                     Restore LDAP directory entries.\n" "$GREEN" "$RESET"
+  printf "  %b-ro,  --restoreOnAccount%b         Restore one account into another account.\n" "$GREEN" "$RESET"
+  printf "  %b-sig, --signature%b                Restore signatures.\n" "$GREEN" "$RESET"
+  printf "  %b-d,   --domain <domains>%b          Filter restore by domain.\n" "$GREEN" "$RESET"
+  printf "  %b-a,   --account <accounts>%b        Filter restore by account.\n" "$GREEN" "$RESET"
+  printf "\n"
 }

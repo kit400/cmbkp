@@ -43,6 +43,11 @@ Based on the original `zmbackup` / `cmbackup` implementations (Lucas Costa Beyel
    - Native support for Ubuntu 22.04, 24.04 (Noble Numbat), Debian, and RHEL/Rocky/AlmaLinux 8–9.
    - Unattended non-interactive installation via `./install.sh -y` or `--unattended`.
 
+9. **Modern Unicode Box Tables & Terminal Styling**:
+   - Clean Unicode rounded box-drawing tables (`╭───┬───╮`) with status colors (bold green for FINISHED, yellow for IN PROGRESS, red for FAILED).
+   - Graceful ASCII fallback for non-UTF8 terminals and clean plain text when piping (`NO_COLOR` and non-TTY support).
+   - Deep inspection of individual backup sessions via `cmbackup -l <session_name>`.
+
 ---
 
 ## Requirements
@@ -143,13 +148,45 @@ su - zextras -c "cmbackup -c user@domain.com"
 su - zextras -c "cmbackup -c"
 ```
 
-### Restoring Backups (`-r`, `--restore`)
-
-List available sessions first:
+### Listing & Inspecting Sessions (`-l`, `--list`)
 
 ```bash
+# List all backup sessions
 su - zextras -c "cmbackup -l"
 ```
+
+Output:
+```text
+╭─────────────────────────┬────────────┬────────────────────┬──────────┬──────────┬────────────╮
+│ Session Name            │ Date       │ Type               │ Accounts │     Size │ Status     │
+├─────────────────────────┼────────────┼────────────────────┼──────────┼──────────┼────────────┤
+│ distlist-20261001010001 │ 2026-10-01 │ Distribution List  │        1 │     8.0K │ FINISHED   │
+│ full-20261001003001     │ 2026-10-01 │ Full Backup        │        2 │     8.4M │ FINISHED   │
+│ inc-20261001013001      │ 2026-10-01 │ Incremental Backup │       29 │      26G │ FINISHED   │
+╰─────────────────────────┴────────────┴────────────────────┴──────────┴──────────┴────────────╯
+  Total: 3 session(s), 32 account(s) backed up in /opt/zextras/backup
+```
+
+Inspect accounts inside a specific session:
+
+```bash
+# Inspect accounts in a session
+su - zextras -c "cmbackup -l full-20261001003001"
+```
+
+Output:
+```text
+  Session Details: full-20261001003001
+╭─────┬────────────────────────────────────────────┬────────────┬────────────┬──────────╮
+│   # │ Account / Mailbox                          │       Size │ Date       │ Status   │
+├─────┼────────────────────────────────────────────┼────────────┼────────────┼──────────┤
+│   1 │ root                                       │       4.2M │ 10/01/26   │ OK       │
+│   2 │ postmaster                                 │       4.2M │ 10/01/26   │ OK       │
+╰─────┴────────────────────────────────────────────┴────────────┴────────────┴──────────╯
+  Session: full-20261001003001 | Total Accounts: 2 | Total Size: 8.4M
+```
+
+### Restoring Backups (`-r`, `--restore`)
 
 Restore a full session:
 

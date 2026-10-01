@@ -2,6 +2,9 @@
 ################################################################################
 # Miscellaneous Functions
 ################################################################################
+LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=/dev/null
+[ -f "$LIB_DIR/TableHelper.sh" ] && source "$LIB_DIR/TableHelper.sh"
 
 ################################################################################
 # clear_temp: Clear all the temporary files.
@@ -323,6 +326,7 @@ function export_function(){
   export -f check_disk_space
   export -f sort_accounts_by_size
   export -f verify_account_messages
+  export -f audit_mailboxes
 }
 
 ################################################################################

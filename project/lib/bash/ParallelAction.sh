@@ -146,14 +146,110 @@ function mailbox_restore()
 }
 
 ###############################################################################
-# verify_account_messages: Audit / count messages in mailbox (from z2c)
+# audit_mailboxes: Audit message count and mailbox size with beautiful tables
+###############################################################################
+function audit_mailboxes()
+{
+  local target_account="$1"
+  init_table_theme
+
+  if [ -n "$target_account" ]; then
+    local widths=(42 12 14 10)
+    local msgs
+    msgs=$($ZMMAILBOX -z -m "$target_account" gaf 2>/dev/null | awk '$1 ~ /^[0-9]+$/ && $3 ~ /^[0-9]+$/ && $4 ~ /^[0-9]+$/ {sum += $4} END {print sum+0}')
+    local bytes
+    bytes=$(zmprov gqu localhost 2>/dev/null | awk -v a="$target_account" '$1 == a {print $3}')
+    [ -z "$bytes" ] && bytes=0
+    local hsize
+    hsize=$(format_bytes "${bytes:-0}")
+    local astatus="OK"
+    [ "${msgs:-0}" -eq 0 ] && [ "${bytes:-0}" -eq 0 ] && astatus="EMPTY"
+    local sclr
+    sclr=$(get_status_color "$astatus")
+
+    echo ""
+    printf "  ${CLR_BOLD_CYAN}%s: ${CLR_BOLD_WHITE}%s${CLR_RESET}\n" "Mailbox Audit" "$target_account"
+    draw_table_border top "${widths[@]}"
+    printf "${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%-40s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%10s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%12s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%-8s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET}\n" \
+      "$BOX_V" "Account" "$BOX_V" "Messages" "$BOX_V" "Mailbox Size" "$BOX_V" "Status" "$BOX_V"
+    draw_table_border mid "${widths[@]}"
+    printf "${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_WHITE}%-40s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_CYAN}%10d${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_GREEN}%12s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} %b%-8s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET}\n" \
+      "$BOX_V" "$target_account" "$BOX_V" "${msgs:-0}" "$BOX_V" "$hsize" "$BOX_V" "$sclr" "$astatus" "$BOX_V"
+    draw_table_border bot "${widths[@]}"
+    echo ""
+    return 0
+  fi
+
+  echo ""
+  printf "  ${CLR_BOLD_CYAN}%s${CLR_RESET}\n" "System Mailbox Message & Storage Audit"
+
+  # Pre-fetch all mailbox used bytes from zmprov gqu in a single fast call
+  local gqu_cache
+  gqu_cache=$(mktemp)
+  zmprov gqu localhost 2>/dev/null > "$gqu_cache"
+
+  # Obtain accounts list
+  local accounts=()
+  local raw_accounts
+  raw_accounts=$(zmprov -l gaa 2>/dev/null | sort)
+  for acc in $raw_accounts; do
+    if [ -f "/etc/cmbackup/blockedlist.conf" ] && grep -Fxq "$acc" /etc/cmbackup/blockedlist.conf 2>/dev/null; then
+      continue
+    fi
+    accounts+=("$acc")
+  done
+
+  if [ "${#accounts[@]}" -eq 0 ]; then
+    draw_empty_box "No active accounts found to audit." 64
+    rm -f "$gqu_cache"
+    return 0
+  fi
+
+  local widths=(5 42 12 14 10)
+  draw_table_border top "${widths[@]}"
+  printf "${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%3s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%-40s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%10s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%12s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_CYAN}%-8s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET}\n" \
+    "$BOX_V" "#" "$BOX_V" "Account / Mailbox" "$BOX_V" "Messages" "$BOX_V" "Mailbox Size" "$BOX_V" "Status" "$BOX_V"
+  draw_table_border mid "${widths[@]}"
+
+  local idx=0
+  local total_msgs=0
+  local total_bytes=0
+
+  for acc in "${accounts[@]}"; do
+    idx=$((idx + 1))
+    local msgs
+    msgs=$($ZMMAILBOX -z -m "$acc" gaf 2>/dev/null | awk '$1 ~ /^[0-9]+$/ && $3 ~ /^[0-9]+$/ && $4 ~ /^[0-9]+$/ {sum += $4} END {print sum+0}')
+    local bytes
+    bytes=$(awk -v a="$acc" '$1 == a {print $3}' "$gqu_cache")
+    [ -z "$bytes" ] && bytes=0
+    local hsize
+    hsize=$(format_bytes "$bytes")
+
+    total_msgs=$((total_msgs + msgs))
+    total_bytes=$((total_bytes + bytes))
+
+    local astatus="OK"
+    [ "${msgs:-0}" -eq 0 ] && [ "${bytes:-0}" -eq 0 ] && astatus="EMPTY"
+    local sclr
+    sclr=$(get_status_color "$astatus")
+
+    printf "${CLR_GRAY}%s${CLR_RESET} ${CLR_GRAY}%3d${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_BOLD_WHITE}%-40s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_CYAN}%10d${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} ${CLR_GREEN}%12s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET} %b%-8s${CLR_RESET} ${CLR_GRAY}%s${CLR_RESET}\n" \
+      "$BOX_V" "$idx" "$BOX_V" "$acc" "$BOX_V" "${msgs:-0}" "$BOX_V" "$hsize" "$BOX_V" "$sclr" "$astatus" "$BOX_V"
+  done
+
+  draw_table_border bot "${widths[@]}"
+  rm -f "$gqu_cache"
+  local total_hsize
+  total_hsize=$(format_bytes "$total_bytes")
+  printf "  ${CLR_DIM}Audit Total: %d accounts | %d total messages | %s total storage${CLR_RESET}\n\n" "$idx" "$total_msgs" "$total_hsize"
+}
+
+###############################################################################
+# verify_account_messages: Audit / count messages in mailbox (backward compat)
 ###############################################################################
 function verify_account_messages()
 {
-  local acc="$1"
-  local msgs
-  msgs=$($ZMMAILBOX -z -m "$acc" gaf 2>/dev/null | awk '$1 ~ /^[0-9]+$/ && $3 ~ /^[0-9]+$/ && $4 ~ /^[0-9]+$/ {sum += $4} END {print sum+0}')
-  printf "  [AUDIT] %-35s : %6d messages\n" "$acc" "$msgs"
+  audit_mailboxes "$1"
 }
 
 

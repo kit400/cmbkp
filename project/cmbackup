@@ -74,6 +74,7 @@ source "$CMBKP_LIB_DIR/BackupAction.sh"
 source "$CMBKP_LIB_DIR/RestoreAction.sh"
 source "$CMBKP_LIB_DIR/DeleteAction.sh"
 source "$CMBKP_LIB_DIR/MigrationAction.sh"
+source "$CMBKP_LIB_DIR/TableHelper.sh"
 source "$CMBKP_LIB_DIR/SessionAction.sh"
 
 ################################################################################
@@ -175,7 +176,7 @@ case "$1" in
     rm -rf "$PID"
   ;;
   "-l"|"--list" )
-    list_sessions
+    list_sessions "$2"
   ;;
   "-r"|"--restore" )
     create_temp
@@ -247,19 +248,7 @@ case "$1" in
     fi
   ;;
   "-c"|"--verify" )
-    if [ -n "$2" ]; then
-      verify_account_messages "$2"
-    else
-      echo "Auditing active accounts on system..."
-      create_temp
-      build_listBKP "$ACOBJECT" "$ACFILTER"
-      if [ -s "$TEMPACCOUNT" ]; then
-        while read -r acc; do
-          verify_account_messages "$acc"
-        done < "$TEMPACCOUNT"
-      fi
-      rm -rf "$PID"
-    fi
+    audit_mailboxes "$2"
   ;;
   "-h"|"--help" )
     show_help

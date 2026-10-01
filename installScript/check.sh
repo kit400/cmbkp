@@ -1,54 +1,68 @@
 #!/bin/bash
 ################################################################################
+# Installation Checks & Environment Verification
+################################################################################
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PARENT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+# shellcheck source=/dev/null
+if [ -f "$PARENT_DIR/project/lib/bash/TableHelper.sh" ]; then
+  source "$PARENT_DIR/project/lib/bash/TableHelper.sh"
+elif [ -f "/usr/local/lib/cmbackup/bash/TableHelper.sh" ]; then
+  source "/usr/local/lib/cmbackup/bash/TableHelper.sh"
+fi
 
 ################################################################################
 # check_env: Check the environment if everything is okay to begin the install
 ################################################################################
 function check_env() {
-  printf "  Root Privileges...	          "
+  type init_table_theme &>/dev/null && init_table_theme
+
+  printf "  %-32s" "Root Privileges..."
   if [ "$(id -u)" -ne 0 ]; then
-    printf "[NO ROOT]\n"
-  	echo "You need root privileges to install cmbackup"
-  	exit "$ERR_NOROOT"
+    printf "%b[NO ROOT]%b\n" "${CLR_BOLD_RED:-}" "${CLR_RESET:-}"
+    echo "You need root privileges to install cmbackup"
+    exit "$ERR_NOROOT"
   else
-    printf "[ROOT]\n"
+    printf "%b[ROOT]%b\n" "${CLR_BOLD_GREEN:-}" "${CLR_RESET:-}"
   fi
-  printf "  Old Cmbackup Install...	  "
+
+  printf "  %-32s" "Old Cmbackup Install..."
   su -s /bin/bash -c "whereis cmbackup" "$OSE_USER" > /dev/null 2>&1
   BASHERRCODE=$?
   if [ $BASHERRCODE != 0 ]; then
-    printf "[NEW INSTALL]\n"
+    printf "%b[NEW INSTALL]%b\n" "${CLR_CYAN:-}" "${CLR_RESET:-}"
     export UPGRADE="N"
     export UNINSTALL="N"
   elif [[ $1 == '--remove' ]] || [[ $1 == '-r' ]]; then
-    printf "[UNINSTALL] - EXECUTING UNINSTALL ROUTINE\n"
+    printf "%b[UNINSTALL]%b - Executing uninstall routine\n" "${CLR_BOLD_YELLOW:-}" "${CLR_RESET:-}"
     export UPGRADE="N"
     export UNINSTALL="Y"
   elif [[ $1 == '--force-upgrade' ]]; then
     VERSION=$(su -s /bin/bash -c "cmbackup -h" "$OSE_USER")
     if [[ "$VERSION" != "$ZMBKP_VERSION" ]]; then
-      printf "[OLD VERSION] - EXECUTING UPGRADE ROUTINE\n"
+      printf "%b[OLD VERSION]%b - Executing upgrade routine\n" "${CLR_BOLD_YELLOW:-}" "${CLR_RESET:-}"
       export UPGRADE="Y"
       export UNINSTALL="N"
     else
-      echo "[NEWEST VERSION] - Nothing to do..."
+      printf "%b[NEWEST VERSION]%b - Nothing to do...\n" "${CLR_BOLD_GREEN:-}" "${CLR_RESET:-}"
       exit 0
     fi
   fi
-  printf "  Checking OS...	          "
+
+  printf "  %-32s" "Checking OS..."
   which apt > /dev/null 2>&1
   BASHERRCODE=$?
   if [[ $BASHERRCODE -eq 0 ]]; then
-    printf "[UBUNTU SERVER]\n"
+    printf "%b[UBUNTU SERVER]%b\n" "${CLR_BOLD_GREEN:-}" "${CLR_RESET:-}"
     SO="ubuntu"
   fi
   which yum > /dev/null 2>&1
   BASHERRCODE=$?
   if [[ $BASHERRCODE -eq 0 ]]; then
-    printf "[RED HAT ENTERPRISE LINUX]\n"
+    printf "%b[RED HAT ENTERPRISE LINUX]%b\n" "${CLR_BOLD_GREEN:-}" "${CLR_RESET:-}"
     SO="redhat"
   elif [[ -z $SO ]]; then
-    printf "[UNSUPPORTED]\n"
+    printf "%b[UNSUPPORTED]%b\n" "${CLR_BOLD_RED:-}" "${CLR_RESET:-}"
     exit 1
   fi
 }
@@ -57,21 +71,50 @@ function check_env() {
 # check_config: Check the environment for other configurations
 ################################################################################
 function check_config() {
+  type init_table_theme &>/dev/null && init_table_theme
+
+  local masked_pass="********"
+  [ -z "$OSE_INSTALL_LDAPPASS" ] && masked_pass="(none)"
+
+  local widths=(32 46)
   echo ""
-  echo "Here is a Summary of your settings:"
+  printf "  %b%s%b\n" "${CLR_BOLD_CYAN:-}" "Installation Configuration Summary" "${CLR_RESET:-}"
+  draw_table_border top "${widths[@]}"
+  printf "%b%s%b %b%-30s%b %b%s%b %b%-44s%b %b%s%b\n" \
+    "${CLR_GRAY:-}" "$BOX_V" "${CLR_RESET:-}" "${CLR_BOLD_CYAN:-}" "Parameter" "${CLR_RESET:-}" \
+    "${CLR_GRAY:-}" "$BOX_V" "${CLR_RESET:-}" "${CLR_BOLD_CYAN:-}" "Value" "${CLR_RESET:-}" \
+    "${CLR_GRAY:-}" "$BOX_V" "${CLR_RESET:-}"
+  draw_table_border mid "${widths[@]}"
+
+  local params=(
+    "Carbonio User"               "$OSE_USER"
+    "Carbonio IP Address"         "$OSE_INSTALL_ADDRESS"
+    "Carbonio LDAP Password"      "$masked_pass"
+    "Carbonio Install Directory"  "$OSE_INSTALL_DIR"
+    "Carbonio Backup Directory"   "$OSE_DEFAULT_BKP_DIR"
+    "Cmbackup Install Directory"  "$ZMBKP_SRC"
+    "Cmbackup Settings Directory" "$ZMBKP_CONF"
+    "Cmbackup Retention Days"     "$ROTATE_TIME"
+    "Cmbackup Parallel Workers"   "$MAX_PARALLEL_PROCESS"
+    "Cmbackup Daily Lock"         "$LOCK_BACKUP"
+    "Cmbackup Session Storage"    "$SESSION_TYPE"
+  )
+
+  for ((i=0; i<${#params[@]}; i+=2)); do
+    local key="${params[i]}"
+    local val="${params[i+1]}"
+    printf "%b%s%b %b%-30s%b %b%s%b %b%-44s%b %b%s%b\n" \
+      "${CLR_GRAY:-}" "$BOX_V" "${CLR_RESET:-}" "${CLR_BOLD_WHITE:-}" "$key" "${CLR_RESET:-}" \
+      "${CLR_GRAY:-}" "$BOX_V" "${CLR_RESET:-}" "${CLR_GREEN:-}" "$val" "${CLR_RESET:-}" \
+      "${CLR_GRAY:-}" "$BOX_V" "${CLR_RESET:-}"
+  done
+
+  draw_table_border bot "${widths[@]}"
   echo ""
-  echo "Carbonio User: $OSE_USER"
-  echo "Carbonio IP Address: $OSE_INSTALL_ADDRESS"
-  echo "Carbonio LDAP Password: $OSE_INSTALL_LDAPPASS"
-  echo "Carbonio Install Directory: $OSE_INSTALL_DIR"
-  echo "Carbonio Backup Directory: $OSE_DEFAULT_BKP_DIR"
-  echo "Cmbackup Install Directory: $ZMBKP_SRC"
-  echo "Cmbackup Settings Directory: $ZMBKP_CONF"
-  echo "Cmbackup Backups Days Max: $ROTATE_TIME"
-  echo "Cmbackup Number of Threads: $MAX_PARALLEL_PROCESS"
-  echo "Cmbackup Backup Lock: $LOCK_BACKUP"
-  echo "Cmbackup Session Default Type: $SESSION_TYPE"
-  echo ""
-  echo "Press ENTER to continue or CTRL+C to cancel."
-  read -r
+  if [ "${UNATTENDED:-}" == "true" ]; then
+    echo "Unattended mode: proceeding with installation."
+  else
+    echo "Press ENTER to continue or CTRL+C to cancel."
+    read -r
+  fi
 }
