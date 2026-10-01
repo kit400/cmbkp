@@ -7,6 +7,8 @@ PARENT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 # shellcheck source=/dev/null
 if [ -f "$PARENT_DIR/project/lib/bash/TableHelper.sh" ]; then
   source "$PARENT_DIR/project/lib/bash/TableHelper.sh"
+elif [ -f "/usr/local/lib/cmbkp/bash/TableHelper.sh" ]; then
+  source "/usr/local/lib/cmbkp/bash/TableHelper.sh"
 elif [ -f "/usr/local/lib/cmbackup/bash/TableHelper.sh" ]; then
   source "/usr/local/lib/cmbackup/bash/TableHelper.sh"
 fi
@@ -20,14 +22,14 @@ function check_env() {
   printf "  %-32s" "Root Privileges..."
   if [ "$(id -u)" -ne 0 ]; then
     printf "%b[NO ROOT]%b\n" "${CLR_BOLD_RED:-}" "${CLR_RESET:-}"
-    echo "You need root privileges to install cmbackup"
+    echo "You need root privileges to install cmbkp"
     exit "$ERR_NOROOT"
   else
     printf "%b[ROOT]%b\n" "${CLR_BOLD_GREEN:-}" "${CLR_RESET:-}"
   fi
 
-  printf "  %-32s" "Old Cmbackup Install..."
-  su -s /bin/bash -c "whereis cmbackup" "$OSE_USER" > /dev/null 2>&1
+  printf "  %-32s" "Cmbkp / Cmbackup Install..."
+  su -s /bin/bash -c "which cmbkp || which cmbackup" "$OSE_USER" > /dev/null 2>&1
   BASHERRCODE=$?
   if [ $BASHERRCODE != 0 ]; then
     printf "%b[NEW INSTALL]%b\n" "${CLR_CYAN:-}" "${CLR_RESET:-}"
@@ -38,7 +40,7 @@ function check_env() {
     export UPGRADE="N"
     export UNINSTALL="Y"
   elif [[ $1 == '--force-upgrade' ]]; then
-    VERSION=$(su -s /bin/bash -c "cmbackup -h" "$OSE_USER")
+    VERSION=$(su -s /bin/bash -c "cmbkp -v 2>/dev/null || cmbackup -v 2>/dev/null" "$OSE_USER")
     if [[ "$VERSION" != "$ZMBKP_VERSION" ]]; then
       printf "%b[OLD VERSION]%b - Executing upgrade routine\n" "${CLR_BOLD_YELLOW:-}" "${CLR_RESET:-}"
       export UPGRADE="Y"

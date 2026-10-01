@@ -55,38 +55,45 @@ function deploy_new() {
   mkdir -p "$OSE_INSTALL_DIR"/.parallel > /dev/null 2>&1 && touch "$OSE_INSTALL_DIR"/.parallel/will-cite
   chown -R "$OSE_USER":"$OSE_USER" "$OSE_INSTALL_DIR"/.parallel
 
-  # Copy file
-  install -o "$OSE_USER" -g "$OSE_USER" -m 755 "$MYDIR"/project/cmbackup "$ZMBKP_SRC"
+  # Copy binary and setup alias symlink
+  install -o "$OSE_USER" -g "$OSE_USER" -m 755 "$MYDIR"/project/cmbkp "$ZMBKP_SRC"/cmbkp
+  ln -sf "$ZMBKP_SRC"/cmbkp "$ZMBKP_SRC"/cmbackup
   echo -ne '#####                 (25%)\r'
   cp -R "$MYDIR"/project/lib/* "$ZMBKP_LIB"
   chown -R "$OSE_USER":"$OSE_USER" "$ZMBKP_LIB"
   chmod -R 755 "$ZMBKP_LIB"
   echo -ne '######                (30%)\r'
 
-  install --backup=numbered -o root -m 600 "$MYDIR"/project/config/cmbackup.cron /etc/cron.d/cmbackup
+  # Directory symlinks for backward compatibility
+  [ "$ZMBKP_LIB" != "/usr/local/lib/cmbackup" ] && ln -sfn "$ZMBKP_LIB" /usr/local/lib/cmbackup
+  [ "$ZMBKP_CONF" != "/etc/cmbackup" ] && ln -sfn "$ZMBKP_CONF" /etc/cmbackup
+
+  # Shell alias for cmbackup -> cmbkp
+  echo "alias cmbackup='cmbkp'" > /etc/profile.d/cmbkp.sh
+  chmod 644 /etc/profile.d/cmbkp.sh
+
+  install --backup=numbered -o root -m 600 "$MYDIR"/project/config/cmbkp.cron /etc/cron.d/cmbkp
+  [ -f /etc/cron.d/cmbackup ] && rm -f /etc/cron.d/cmbackup
   echo -ne '#######               (35%)\r'
-  install --backup=numbered -o "$OSE_USER" -m 600 "$MYDIR"/project/config/cmbackup.conf "$ZMBKP_CONF"
+  install --backup=numbered -o "$OSE_USER" -m 600 "$MYDIR"/project/config/cmbkp.conf "$ZMBKP_CONF"/cmbkp.conf
+  ln -sf "$ZMBKP_CONF"/cmbkp.conf "$ZMBKP_CONF"/cmbackup.conf
   echo -ne '########              (40%)\r'
   install --backup=numbered -o "$OSE_USER" -m 600 "$MYDIR"/project/config/blockedlist.conf "$ZMBKP_CONF"
   echo -ne '#########             (45%)\r'
 
   # Including custom settings
-  sed -i "s|{OSE_DEFAULT_BKP_DIR}|${OSE_DEFAULT_BKP_DIR}|g" "$ZMBKP_CONF"/cmbackup.conf
-  echo -ne '############          (60%)\r'
-  sed -i "s|{ZMBKP_MAIL_ALERT}|${ZMBKP_MAIL_ALERT}|g" "$ZMBKP_CONF"/cmbackup.conf
-  echo -ne '#############         (65%)\r'
-  sed -i "s|{ZMBKP_MAIL_SENDER}|${ZMBKP_MAIL_SENDER}|g" "$ZMBKP_CONF"/cmbackup.conf
-  echo -ne '#############         (65%)\r'
-  sed -i "s|{OSE_INSTALL_ADDRESS}|${OSE_INSTALL_ADDRESS}|g" "$ZMBKP_CONF"/cmbackup.conf
-  echo -ne '##############        (70%)\r'
-  sed -i "s|{OSE_INSTALL_LDAPPASS}|${OSE_INSTALL_LDAPPASS}|g" "$ZMBKP_CONF"/cmbackup.conf
-  sed -i "s|{SESSION_TYPE}|${SESSION_TYPE}|g" "$ZMBKP_CONF"/cmbackup.conf
-  echo -ne '###############       (75%)\r'
-  sed -i "s|{OSE_USER}|${OSE_USER}|g" "$ZMBKP_CONF"/cmbackup.conf
-  sed -i "s|{MAX_PARALLEL_PROCESS}|${MAX_PARALLEL_PROCESS}|g" "$ZMBKP_CONF"/cmbackup.conf
-  echo -ne '################      (80%)\r'
-  sed -i "s|{ROTATE_TIME}|${ROTATE_TIME}|g" "$ZMBKP_CONF"/cmbackup.conf
-  sed -i "s|{LOCK_BACKUP}|${LOCK_BACKUP}|g" "$ZMBKP_CONF"/cmbackup.conf
+  for cfg in "$ZMBKP_CONF"/cmbkp.conf; do
+    sed -i "s|{OSE_DEFAULT_BKP_DIR}|${OSE_DEFAULT_BKP_DIR}|g" "$cfg"
+    sed -i "s|{ZMBKP_MAIL_ALERT}|${ZMBKP_MAIL_ALERT}|g" "$cfg"
+    sed -i "s|{ZMBKP_MAIL_SENDER}|${ZMBKP_MAIL_SENDER}|g" "$cfg"
+    sed -i "s|{OSE_INSTALL_ADDRESS}|${OSE_INSTALL_ADDRESS}|g" "$cfg"
+    sed -i "s|{OSE_INSTALL_LDAPPASS}|${OSE_INSTALL_LDAPPASS}|g" "$cfg"
+    sed -i "s|{SESSION_TYPE}|${SESSION_TYPE}|g" "$cfg"
+    sed -i "s|{OSE_USER}|${OSE_USER}|g" "$cfg"
+    sed -i "s|{MAX_PARALLEL_PROCESS}|${MAX_PARALLEL_PROCESS}|g" "$cfg"
+    sed -i "s|{ROTATE_TIME}|${ROTATE_TIME}|g" "$cfg"
+    sed -i "s|{LOCK_BACKUP}|${LOCK_BACKUP}|g" "$cfg"
+  done
   echo -ne '#################     (85%)\r'
 
   # Fix backup dir permissions (owner MUST be $OSE_USER)
@@ -114,12 +121,17 @@ function deploy_upgrade(){
   chown -R "$OSE_USER":"$OSE_USER" "$OSE_INSTALL_DIR"/.parallel
 
   # Copy files
-  install -o "$OSE_USER" -g "$OSE_USER" -m 755 "$MYDIR"/project/cmbackup "$ZMBKP_SRC"
+  install -o "$OSE_USER" -g "$OSE_USER" -m 755 "$MYDIR"/project/cmbkp "$ZMBKP_SRC"/cmbkp
+  ln -sf "$ZMBKP_SRC"/cmbkp "$ZMBKP_SRC"/cmbackup
   echo -ne '###############       (75%)\r'
   test -d "$ZMBKP_LIB" || mkdir -p "$ZMBKP_LIB"
   cp -R "$MYDIR"/project/lib/* "$ZMBKP_LIB"
   chown -R "$OSE_USER":"$OSE_USER" "$ZMBKP_LIB"
   chmod -R 755 "$ZMBKP_LIB"
+  [ "$ZMBKP_LIB" != "/usr/local/lib/cmbackup" ] && ln -sfn "$ZMBKP_LIB" /usr/local/lib/cmbackup
+  [ "$ZMBKP_CONF" != "/etc/cmbackup" ] && ln -sfn "$ZMBKP_CONF" /etc/cmbackup
+  echo "alias cmbackup='cmbkp'" > /etc/profile.d/cmbkp.sh
+  chmod 644 /etc/profile.d/cmbkp.sh
   echo -ne '####################  (100%)\r'
 }
 
@@ -128,14 +140,15 @@ function deploy_upgrade(){
 ################################################################################
 function uninstall() {
   echo "Removing... Please wait while we made some changes."
-  source "$ZMBKP_CONF"/cmbackup.conf
+  [ -f "$ZMBKP_CONF"/cmbkp.conf ] && source "$ZMBKP_CONF"/cmbkp.conf
+  [ -f "$ZMBKP_CONF"/cmbackup.conf ] && source "$ZMBKP_CONF"/cmbackup.conf
   echo -ne '                     (0%)\r'
   rm -rf "$ZMBKP_SHARE" "$ZMBKP_SRC"/zmbhousekeep > /dev/null 2>&1
   rm -rf "$OSE_INSTALL_DIR"/.parallel
   echo -ne '#####                 (25%)\r'
   rm -rf /etc/yum.repos.d/tange.repo
-  rm -rf /etc/cron.d/cmbackup
-  rm -rf "$ZMBKP_LIB" "$ZMBKP_CONF" "$ZMBKP_SRC"/cmbackup
+  rm -rf /etc/cron.d/cmbackup /etc/cron.d/cmbkp /etc/profile.d/cmbkp.sh
+  rm -rf "$ZMBKP_LIB" "$ZMBKP_CONF" "$ZMBKP_SRC"/cmbackup "$ZMBKP_SRC"/cmbkp /etc/cmbackup /usr/local/lib/cmbackup
   echo -ne '##########            (50%)\r'
   if [[ -f $ZMBKP_CONF/blockedlist.conf ]]; then
     install --backup=numbered -o "$OSE_USER" -m 600 "$MYDIR"/project/config/blockedlist.conf "$ZMBKP_CONF"

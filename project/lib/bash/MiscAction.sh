@@ -55,15 +55,21 @@ fi
 # load_config: Load the config file and zextras's bashrc.
 ################################################################################
 function load_config(){
-  if [ -n "$CMBACKUP_CONF" ] && [ -f "$CMBACKUP_CONF" ]; then
+  if [ -n "$CMBKP_CONF" ] && [ -f "$CMBKP_CONF" ]; then
+    source "$CMBKP_CONF" 2> /dev/null
+  elif [ -n "$CMBACKUP_CONF" ] && [ -f "$CMBACKUP_CONF" ]; then
     source "$CMBACKUP_CONF" 2> /dev/null
+  elif [ -f "/etc/cmbkp/cmbkp.conf" ]; then
+    source /etc/cmbkp/cmbkp.conf 2> /dev/null
   elif [ -f "/etc/cmbackup/cmbackup.conf" ]; then
     source /etc/cmbackup/cmbackup.conf 2> /dev/null
+  elif [ -f "$(dirname "${BASH_SOURCE[0]}")/../../config/cmbkp.conf" ]; then
+    source "$(dirname "${BASH_SOURCE[0]}")/../../config/cmbkp.conf" 2> /dev/null
   elif [ -f "$(dirname "${BASH_SOURCE[0]}")/../../config/cmbackup.conf" ]; then
     source "$(dirname "${BASH_SOURCE[0]}")/../../config/cmbackup.conf" 2> /dev/null
   else
-    logger -i -p local7.err "Cmbackup: cmbackup.conf not found."
-    echo "ERROR - cmbackup.conf not found. Can't proceed without the file."
+    logger -i -p local7.err "Cmbkp: Configuration file not found."
+    echo "ERROR - Configuration file not found. Can't proceed without cmbkp.conf or cmbackup.conf."
     exit 1
   fi
   if [ -f "/opt/zextras/.bashrc" ]; then
@@ -72,7 +78,7 @@ function load_config(){
 }
 
 ################################################################################
-# constants: Initialize all the constants used by the Cmbackup.
+# constants: Initialize all the constants used by the Cmbkp.
 ################################################################################
 function constant(){
   # LDAP OBJECT
@@ -82,7 +88,7 @@ function constant(){
     export readonly ACOBJECT="(&(objectclass=zimbraAccount)(zimbraAccountStatus=active))"
   fi
 
-  # Enabling SSL for CMBACKUP
+  # Enabling SSL for CMBKP
    if [ "$SSL_ENABLE" == "true" ]; then
      export readonly WEBPROTO="https"
    else
@@ -99,8 +105,8 @@ function constant(){
   export readonly ALFILTER="uid"
   export readonly SIFILTER="zimbraSignatureName"
 
-  # PID FILE
-  export readonly PID='/opt/zextras/log/cmbackup.pid'
+  # PID FILE (supports cmbkp with legacy cmbackup check)
+  export readonly PID='/opt/zextras/log/cmbkp.pid'
 }
 
 ################################################################################
@@ -294,20 +300,28 @@ function check_disk_space(){
 # checkpid: Check if the PID file exist. If exist, exit with status 3 and do nothing
 ################################################################################
 function checkpid(){
+  # Clean up legacy cmbackup.pid if stale
+  if [ -f "/opt/zextras/log/cmbackup.pid" ] && [ "$PID" != "/opt/zextras/log/cmbackup.pid" ]; then
+    local old_pid; old_pid=$(cat "/opt/zextras/log/cmbackup.pid" 2>/dev/null)
+    if [ -n "$old_pid" ] && ! kill -0 "$old_pid" 2>/dev/null; then
+      rm -f "/opt/zextras/log/cmbackup.pid"
+    fi
+  fi
+
   if [[ -f "$PID" ]]; then
-    PIDP=$(cat $PID)
+    PIDP=$(cat "$PID")
     PIDR=$(ps -efa | awk '{print $2}' | grep -c "^$PIDP$")
     if [ "$PIDR" -gt 0 ]; then
-      echo "FATAL: could not write lock file '/opt/zextras/log/cmbackup.pid': File already exist"
-      echo "This file exist as a secure measurement to protect your system to run two cmbackup"
+      echo "FATAL: could not write lock file '$PID': File already exists"
+      echo "This file exists to protect your system from running two cmbkp"
       echo "instances at the same time."
       exit 4
     else
       echo 'Found stale PID file. Proceeding'
-      echo $$ > $PID
+      echo $$ > "$PID"
     fi
   else
-    echo $$ > $PID
+    echo $$ > "$PID"
   fi
 }
 

@@ -6,14 +6,14 @@
 ################################################################################
 function install_ubuntu() {
   echo "Installing dependencies. Please wait..."
-  if ! which parallel >/dev/null 2>&1 || ! which sqlite3 >/dev/null 2>&1; then
+  if ! which parallel >/dev/null 2>&1 || ! which sqlite3 >/dev/null 2>&1 || ! which fzf >/dev/null 2>&1; then
     apt-get update -qq > /dev/null 2>&1
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq parallel sqlite3 > /dev/null 2>&1
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq parallel sqlite3 fzf > /dev/null 2>&1
   fi
   if which parallel >/dev/null 2>&1; then
     echo "Dependencies verified with success!"
   else
-    echo "Dependencies could not be installed automatically. Please run: apt install -y parallel sqlite3"
+    echo "Dependencies could not be installed automatically. Please run: apt install -y parallel sqlite3 fzf"
     exit "$ERR_DEPNOTFOUND"
   fi
 }
@@ -25,14 +25,14 @@ function install_redhat() {
   echo "Installing dependencies. Please wait..."
   local PKG_MGR="yum"
   which dnf >/dev/null 2>&1 && PKG_MGR="dnf"
-  if ! which parallel >/dev/null 2>&1 || ! which sqlite3 >/dev/null 2>&1; then
+  if ! which parallel >/dev/null 2>&1 || ! which sqlite3 >/dev/null 2>&1 || ! which fzf >/dev/null 2>&1; then
     $PKG_MGR install -y epel-release > /dev/null 2>&1 || true
-    $PKG_MGR install -y parallel sqlite > /dev/null 2>&1
+    $PKG_MGR install -y parallel sqlite fzf > /dev/null 2>&1
   fi
   if which parallel >/dev/null 2>&1; then
     echo "Dependencies verified with success!"
   else
-    echo "Dependencies could not be installed automatically. Please run: $PKG_MGR install -y epel-release parallel sqlite"
+    echo "Dependencies could not be installed automatically. Please run: $PKG_MGR install -y epel-release parallel sqlite fzf"
     exit "$ERR_DEPNOTFOUND"
   fi
 }
